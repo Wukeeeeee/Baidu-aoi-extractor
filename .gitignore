@@ -1,0 +1,21 @@
+# 爬取出的数据文件
+*_轮廓.*
+*_轮廓_*.*
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# IDE
+.idea/
+.vscode/
+
+# Claude
+.claude/
+
+# 系统
+.DS_Store
+Thumbs.db

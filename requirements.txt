@@ -1,0 +1,4 @@
+playwright>=1.40.0
+transbigdata>=0.4.0
+geopandas>=0.14.0
+shapely>=2.0.0
