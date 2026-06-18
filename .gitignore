@@ -1,6 +1,7 @@
-# 爬取出的数据文件
+# Extracted/exported data files
 *_轮廓.*
 *_轮廓_*.*
+AOI导出汇总_*.xlsx
 
 # Python
 __pycache__/
@@ -9,13 +10,32 @@ __pycache__/
 .venv/
 venv/
 
+# .NET / C#
+bin/
+obj/
+*.user
+
+# Local release bundles
+BaiduAoiExtractor_EXE_Final/
+final/
+*.zip
+BaiduAoiExtractor.Win/publish*/
+
+# Local diagnostics / screenshots
+window-check*.png
+window-current*.png
+check_enc.py
+BaiduAoiExtractor.Win/test_*.cs
+
 # IDE
 .idea/
 .vscode/
+.vs/
+BaiduAoiExtractor.Win/.vs/
 
 # Claude
 .claude/
 
-# 系统
+# System
 .DS_Store
 Thumbs.db
