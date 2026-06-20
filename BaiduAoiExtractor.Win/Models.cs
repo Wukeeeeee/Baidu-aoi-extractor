@@ -2,6 +2,14 @@ namespace BaiduAoiExtractor.Win;
 
 internal sealed record AoiPoint(double X, double Y);
 
+internal sealed record PoiPoint(
+    string Name,
+    double Longitude,
+    double Latitude,
+    string? Uid = null,
+    string? Tag = null,
+    string? Address = null);
+
 internal sealed record CrawlSettings(
     bool Headless,
     bool Debug,
@@ -29,13 +37,18 @@ internal sealed record CrawlResult(
     bool Success,
     string Message)
 {
+    public IReadOnlyList<PoiPoint> PoiPoints { get; init; } = Array.Empty<PoiPoint>();
+
     public static CrawlResult Fail(string placeName, string? uid, string message)
     {
         return new CrawlResult(placeName, uid, null, Array.Empty<AoiPoint>(), false, message);
     }
 
-    public static CrawlResult Ok(string placeName, string? uid, string geo, IReadOnlyList<AoiPoint> points)
+    public static CrawlResult Ok(string placeName, string? uid, string geo, IReadOnlyList<AoiPoint> points, IReadOnlyList<PoiPoint>? poiPoints = null)
     {
-        return new CrawlResult(placeName, uid, geo, points, true, $"成功导出 {points.Count} 个坐标点");
+        return new CrawlResult(placeName, uid, geo, points, true, $"成功导出 {points.Count} 个坐标点")
+        {
+            PoiPoints = poiPoints ?? Array.Empty<PoiPoint>()
+        };
     }
 }

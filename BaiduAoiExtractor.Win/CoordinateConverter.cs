@@ -37,6 +37,13 @@ internal static class CoordinateConverter
         return result;
     }
 
+    public static AoiPoint Bd09ToWgs84(double lon, double lat)
+    {
+        var gcj02 = Bd09ToGcj02(lon, lat);
+        var wgs84 = Gcj02ToWgs84(gcj02.X, gcj02.Y);
+        return new AoiPoint(Math.Round(wgs84.X, 6), Math.Round(wgs84.Y, 6));
+    }
+
     private static AoiPoint Bd09McToBd09(double x, double y)
     {
         double[]? coef = null;

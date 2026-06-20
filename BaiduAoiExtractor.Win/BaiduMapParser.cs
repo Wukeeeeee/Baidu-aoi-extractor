@@ -66,6 +66,17 @@ internal static class BaiduMapParser
             .ToList();
     }
 
+    public static IReadOnlyList<PoiPoint> ExtractPoiPoints(JsonElement data)
+    {
+        var points = new List<PoiPoint>();
+        AddPoiPoints(data, points);
+        return points
+            .Where(p => !string.IsNullOrWhiteSpace(p.Name))
+            .DistinctBy(p => $"{p.Name}|{p.Uid}|{p.Longitude:F6}|{p.Latitude:F6}")
+            .Take(500)
+            .ToList();
+    }
+
     public static IReadOnlyList<AoiPoint> ParseGeoToBd09McPoints(string geo)
     {
         var parts = geo.Split('|');
@@ -138,6 +149,142 @@ internal static class BaiduMapParser
         {
             suggestions.Add(new PlaceSuggestion(name, address, uid));
         }
+    }
+
+    private static void AddPoiPoints(JsonElement item, List<PoiPoint> points)
+    {
+        if (item.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var child in item.EnumerateArray())
+            {
+                AddPoiPoints(child, points);
+            }
+
+            return;
+        }
+
+        if (item.ValueKind != JsonValueKind.Object)
+        {
+            return;
+        }
+
+        if (TryBuildPoiPoint(item, out var poi))
+        {
+            points.Add(poi);
+        }
+
+        foreach (var property in item.EnumerateObject())
+        {
+            AddPoiPoints(property.Value, points);
+        }
+    }
+
+    private static bool TryBuildPoiPoint(JsonElement item, out PoiPoint poi)
+    {
+        poi = default!;
+        var name = GetFirstString(item, "name", "wd", "std_tag", "di_tag", "title");
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return false;
+        }
+
+        if (!TryGetCoordinate(item, out var wgs84))
+        {
+            return false;
+        }
+
+        var uid = GetFirstString(item, "uid", "bid");
+        var tag = GetFirstString(item, "std_tag", "tag", "di_tag", "showtag");
+        var address = GetFirstString(item, "addr", "address", "area_name");
+        poi = new PoiPoint(name, wgs84.X, wgs84.Y, uid, tag, address);
+        return true;
+    }
+
+    private static bool TryGetCoordinate(JsonElement item, out AoiPoint wgs84)
+    {
+        wgs84 = default!;
+        if (TryGetNumber(item, out var x, "x", "point_x", "px") &&
+            TryGetNumber(item, out var y, "y", "point_y", "py"))
+        {
+            wgs84 = ConvertAnyBaiduPoint(x, y);
+            return true;
+        }
+
+        if (TryGetProperty(item, "point", out var point))
+        {
+            if (point.ValueKind == JsonValueKind.Object &&
+                TryGetNumber(point, out x, "x", "lng", "lon") &&
+                TryGetNumber(point, out y, "y", "lat"))
+            {
+                wgs84 = ConvertAnyBaiduPoint(x, y);
+                return true;
+            }
+
+            if (point.ValueKind == JsonValueKind.String && TryParsePointString(point.GetString(), out x, out y))
+            {
+                wgs84 = ConvertAnyBaiduPoint(x, y);
+                return true;
+            }
+        }
+
+        if (TryGetNumber(item, out var lon, "lng", "lon", "longitude") &&
+            TryGetNumber(item, out var lat, "lat", "latitude"))
+        {
+            wgs84 = ConvertAnyBaiduPoint(lon, lat);
+            return true;
+        }
+
+        return false;
+    }
+
+    private static AoiPoint ConvertAnyBaiduPoint(double x, double y)
+    {
+        if (Math.Abs(x) > 1000 || Math.Abs(y) > 1000)
+        {
+            return CoordinateConverter.Bd09McToWgs84(new[] { new AoiPoint(x, y) })[0];
+        }
+
+        return CoordinateConverter.Bd09ToWgs84(x, y);
+    }
+
+    private static bool TryGetNumber(JsonElement item, out double value, params string[] names)
+    {
+        foreach (var name in names)
+        {
+            if (!TryGetProperty(item, name, out var property))
+            {
+                continue;
+            }
+
+            if (property.ValueKind == JsonValueKind.Number && property.TryGetDouble(out value))
+            {
+                return true;
+            }
+
+            if (property.ValueKind == JsonValueKind.String &&
+                double.TryParse(property.GetString(), NumberStyles.Float, CultureInfo.InvariantCulture, out value))
+            {
+                return true;
+            }
+        }
+
+        value = 0;
+        return false;
+    }
+
+    private static bool TryParsePointString(string? text, out double x, out double y)
+    {
+        x = 0;
+        y = 0;
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return false;
+        }
+
+        var tokens = text.Split([',', ';', ' '], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return tokens.Length >= 2 &&
+               double.TryParse(tokens[0], NumberStyles.Float, CultureInfo.InvariantCulture, out x) &&
+               double.TryParse(tokens[1], NumberStyles.Float, CultureInfo.InvariantCulture, out y);
     }
 
     private static void AddSuggestions(JsonElement item, List<PlaceSuggestion> suggestions)

@@ -23,6 +23,7 @@ internal sealed class BaiduAoiCrawler
         var placeName = input.Label;
         var selectedUid = input.Uid;
         var searchUids = new List<string>();
+        var poiPoints = new List<PoiPoint>();
         string? geo = null;
         string? successUid = null;
 
@@ -55,6 +56,7 @@ internal sealed class BaiduAoiCrawler
                     if (url.Contains("detailConInfo", StringComparison.OrdinalIgnoreCase))
                     {
                         using var document = await ResponseJsonAsync(response);
+                        AddPoiPoints(document.RootElement, poiPoints);
                         var parsedGeo = BaiduMapParser.ExtractGeoFromDetail(document.RootElement);
                         if (!string.IsNullOrWhiteSpace(parsedGeo))
                         {
@@ -70,6 +72,7 @@ internal sealed class BaiduAoiCrawler
                     if (url.Contains("qt=s", StringComparison.OrdinalIgnoreCase))
                     {
                         using var document = await ResponseJsonAsync(response);
+                        AddPoiPoints(document.RootElement, poiPoints);
                         var uids = BaiduMapParser.ExtractUidsFromSearch(document.RootElement);
                         foreach (var uid in uids)
                         {
@@ -131,7 +134,7 @@ internal sealed class BaiduAoiCrawler
                 }
 
                 _log($"[{placeName}] 尝试 UID: {uid}");
-                var detailGeo = await TryDetailApiAsync(context, page, placeName, uid, settings);
+                var detailGeo = await TryDetailApiAsync(context, page, placeName, uid, settings, poiPoints);
                 if (!string.IsNullOrWhiteSpace(detailGeo))
                 {
                     geo = detailGeo;
@@ -171,7 +174,7 @@ internal sealed class BaiduAoiCrawler
             }
 
             var wgs84Points = CoordinateConverter.Bd09McToWgs84(bd09McPoints);
-            return CrawlResult.Ok(placeName, successUid ?? selectedUid ?? searchUids.FirstOrDefault(), geo, wgs84Points);
+            return CrawlResult.Ok(placeName, successUid ?? selectedUid ?? searchUids.FirstOrDefault(), geo, wgs84Points, DeduplicatePoiPoints(poiPoints));
         }
         catch (OperationCanceledException)
         {
@@ -247,7 +250,7 @@ internal sealed class BaiduAoiCrawler
         return JsonDocument.Parse(text);
     }
 
-    private async Task<string?> TryDetailApiAsync(IBrowserContext context, IPage page, string placeName, string uid, CrawlSettings settings)
+    private async Task<string?> TryDetailApiAsync(IBrowserContext context, IPage page, string placeName, string uid, CrawlSettings settings, List<PoiPoint> poiPoints)
     {
         var apiUrl = "https://map.baidu.com/?uid=" + Uri.EscapeDataString(uid) +
                      "&ugc_type=3&ugc_ver=1&qt=detailConInfo&device_ratio=1&compat=1";
@@ -260,6 +263,7 @@ internal sealed class BaiduAoiCrawler
                 if (response.Ok)
                 {
                     using var document = JsonDocument.Parse(await response.TextAsync());
+                    AddPoiPoints(document.RootElement, poiPoints);
                     var parsedGeo = BaiduMapParser.ExtractGeoFromDetail(document.RootElement);
                     if (!string.IsNullOrWhiteSpace(parsedGeo))
                     {
@@ -293,6 +297,7 @@ internal sealed class BaiduAoiCrawler
                 if (!json.StartsWith("FETCH_ERROR", StringComparison.Ordinal))
                 {
                     using var document = JsonDocument.Parse(json);
+                    AddPoiPoints(document.RootElement, poiPoints);
                     var parsedGeo = BaiduMapParser.ExtractGeoFromDetail(document.RootElement);
                     if (!string.IsNullOrWhiteSpace(parsedGeo))
                     {
@@ -394,5 +399,23 @@ internal sealed class BaiduAoiCrawler
         {
             _log(message);
         }
+    }
+
+    private static void AddPoiPoints(JsonElement element, List<PoiPoint> points)
+    {
+        var extracted = BaiduMapParser.ExtractPoiPoints(element);
+        foreach (var point in extracted)
+        {
+            points.Add(point);
+        }
+    }
+
+    private static IReadOnlyList<PoiPoint> DeduplicatePoiPoints(IEnumerable<PoiPoint> points)
+    {
+        return points
+            .Where(p => !string.IsNullOrWhiteSpace(p.Name))
+            .DistinctBy(p => $"{p.Name}|{p.Uid}|{p.Longitude:F6}|{p.Latitude:F6}")
+            .Take(500)
+            .ToList();
     }
 }

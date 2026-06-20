@@ -8,6 +8,7 @@ public partial class Form1 : Form
 {
     private readonly TextBox _searchTextBox = new();
     private readonly ListBox _suggestionsListBox = new();
+    private readonly ListView _excelPreviewList = new();
     private readonly ListView _placesList = new();
     private readonly TextBox _outputTextBox = new() { Text = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "BaiduAoiOutputs") };
     private readonly TextBox _logTextBox = new();
@@ -15,9 +16,15 @@ public partial class Form1 : Form
     private readonly Button _addButton = new();
     private readonly Button _removeButton = new();
     private readonly Button _importExcelButton = new();
+    private readonly Button _addExcelSelectedButton = new();
+    private readonly Button _addExcelAllButton = new();
+    private readonly Button _clearExcelPreviewButton = new();
     private readonly Button _browseButton = new();
     private readonly Button _startButton = new();
     private readonly Button _cancelButton = new();
+    private readonly Button _exportAoiButton = new();
+    private readonly Button _exportPoiButton = new();
+    private readonly Button _exportMainPoiButton = new();
     private readonly NumericUpDown _threadsBox = new() { Minimum = 1, Maximum = 5, Increment = 1, Value = 1 };
     private readonly NumericUpDown _minDelayBox = new() { Minimum = 0, Maximum = 60000, Increment = 500, Value = 1000 };
     private readonly NumericUpDown _maxDelayBox = new() { Minimum = 0, Maximum = 60000, Increment = 500, Value = 4000 };
@@ -25,11 +32,13 @@ public partial class Form1 : Form
     private readonly CheckBox _debugBox = new();
     private readonly CheckBox _excelBox = new() { Checked = true };
     private readonly CheckBox _geoJsonBox = new() { Checked = true };
+    private readonly CheckBox _autoFirstCandidateBox = new() { Checked = true };
     private readonly ProgressBar _progressBar = new();
     private readonly ListView _resultList = new();
     private readonly WebBrowser _mapBrowser = new();
     private readonly Label _mapPlaceholder = new();
     private readonly List<PlaceInput> _places = [];
+    private readonly List<PlaceInput> _excelPreviewPlaces = [];
     private readonly List<CrawlResult> _results = [];
     private readonly BaiduSuggestionService _suggestionService = new();
 
@@ -130,7 +139,8 @@ public partial class Form1 : Form
         content.Controls.Add(BuildSearchGroup(), 0, 0);
         content.Controls.Add(BuildOutputGroup(), 0, 1);
         content.Controls.Add(BuildSettingsGroup(), 0, 2);
-        content.Controls.Add(BuildActionGroup(), 0, 3);
+        content.Controls.Add(BuildExcelPreviewGroup(), 0, 3);
+        content.Controls.Add(BuildActionGroup(), 0, 4);
         outer.Controls.Add(content);
         return outer;
     }
@@ -187,17 +197,17 @@ public partial class Form1 : Form
     private Control BuildSettingsGroup()
     {
         var group = CreateGroup("爬取设置");
-        group.Height = 310;
+        group.Height = 350;
         var layout = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
             ColumnCount = 2,
-            RowCount = 6,
+            RowCount = 7,
             Padding = new Padding(12, 16, 12, 8)
         };
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 98));
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        for (var i = 0; i < 6; i++)
+        for (var i = 0; i < 7; i++)
         {
             layout.RowStyles.Add(new RowStyle(SizeType.Absolute, i < 2 ? 38 : 40));
         }
@@ -222,6 +232,7 @@ public partial class Form1 : Form
         ConfigureCheckBox(_debugBox, "输出调试日志");
         ConfigureCheckBox(_excelBox, "输出 Excel 汇总", true);
         ConfigureCheckBox(_geoJsonBox, "输出 GeoJSON", true);
+        ConfigureCheckBox(_autoFirstCandidateBox, "无UID时自动选第一个候选", true);
 
         layout.Controls.Add(_showBrowserBox, 0, 2);
         layout.SetColumnSpan(_showBrowserBox, 2);
@@ -231,6 +242,8 @@ public partial class Form1 : Form
         layout.SetColumnSpan(_excelBox, 2);
         layout.Controls.Add(_geoJsonBox, 0, 5);
         layout.SetColumnSpan(_geoJsonBox, 2);
+        layout.Controls.Add(_autoFirstCandidateBox, 0, 6);
+        layout.SetColumnSpan(_autoFirstCandidateBox, 2);
 
         group.Controls.Add(layout);
         return group;
@@ -239,26 +252,69 @@ public partial class Form1 : Form
     private Control BuildActionGroup()
     {
         var group = CreateGroup("运行控制");
-        group.Height = 205;
-        var layout = CreateGroupLayout(3);
-        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
-        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 52));
-        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
+        group.Height = 190;
+        var layout = CreateGroupLayout(2);
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 76));
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
 
-        ConfigureButton(_importExcelButton, "导入 Excel", Color.FromArgb(65, 122, 85), 36);
-        _importExcelButton.Click += ImportExcelButton_Click;
-        layout.Controls.Add(_importExcelButton, 0, 0);
-
-        ConfigureButton(_startButton, "开始提取", Color.FromArgb(8, 104, 72), 44);
-        _startButton.Font = new Font(Font.FontFamily, 11F, FontStyle.Bold);
-        _startButton.Margin = new Padding(4, 3, 4, 3);
+        ConfigureButton(_startButton, "开始提取", Color.FromArgb(0, 120, 72), 68);
+        _startButton.Font = new Font(Font.FontFamily, 14F, FontStyle.Bold);
+        _startButton.Margin = new Padding(4, 4, 4, 6);
         _startButton.Click += StartButton_Click;
-        layout.Controls.Add(_startButton, 0, 1);
+        layout.Controls.Add(_startButton, 0, 0);
 
         ConfigureButton(_cancelButton, "取消任务", Color.FromArgb(132, 59, 59), 36);
         _cancelButton.Enabled = false;
         _cancelButton.Click += CancelButton_Click;
-        layout.Controls.Add(_cancelButton, 0, 2);
+        layout.Controls.Add(_cancelButton, 0, 1);
+
+        group.Controls.Add(layout);
+        return group;
+    }
+
+    private Control BuildExcelPreviewGroup()
+    {
+        var group = CreateGroup("Excel导入预览");
+        group.Height = 260;
+        var layout = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 3,
+            Padding = new Padding(8, 18, 8, 8)
+        };
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
+        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
+
+        ConfigureButton(_importExcelButton, "导入 Excel", Color.FromArgb(65, 122, 85), 32);
+        _importExcelButton.Click += ImportExcelButton_Click;
+        layout.Controls.Add(_importExcelButton, 0, 0);
+
+        ConfigureList(_excelPreviewList);
+        _excelPreviewList.MultiSelect = true;
+        _excelPreviewList.Columns.Add("地点", 135);
+        _excelPreviewList.Columns.Add("UID", 95);
+        _excelPreviewList.Columns.Add("地址/来源", 160);
+        layout.Controls.Add(_excelPreviewList, 0, 1);
+
+        var buttons = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 3, Margin = new Padding(0, 4, 0, 0) };
+        buttons.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 34));
+        buttons.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33));
+        buttons.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33));
+        ConfigureButton(_addExcelSelectedButton, "添加选中", Color.FromArgb(28, 92, 187), 32);
+        ConfigureButton(_addExcelAllButton, "全部添加", Color.FromArgb(8, 104, 72), 32);
+        ConfigureButton(_clearExcelPreviewButton, "清空预览", Color.FromArgb(129, 77, 45), 32);
+        _addExcelSelectedButton.Enabled = false;
+        _addExcelAllButton.Enabled = false;
+        _clearExcelPreviewButton.Enabled = false;
+        _addExcelSelectedButton.Click += AddExcelSelectedButton_Click;
+        _addExcelAllButton.Click += AddExcelAllButton_Click;
+        _clearExcelPreviewButton.Click += ClearExcelPreviewButton_Click;
+        buttons.Controls.Add(_addExcelSelectedButton, 0, 0);
+        buttons.Controls.Add(_addExcelAllButton, 1, 0);
+        buttons.Controls.Add(_clearExcelPreviewButton, 2, 0);
+        layout.Controls.Add(buttons, 0, 2);
 
         group.Controls.Add(layout);
         return group;
@@ -347,7 +403,7 @@ public partial class Form1 : Form
         var group = new GroupBox { Text = "运行结果", Dock = DockStyle.Fill, Padding = new Padding(8, 20, 8, 8) };
         var outer = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2 };
         outer.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        outer.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
+        outer.RowStyles.Add(new RowStyle(SizeType.Absolute, 94));
 
         ConfigureList(_resultList);
         _resultList.MultiSelect = false;
@@ -359,20 +415,37 @@ public partial class Form1 : Form
         _resultList.SelectedIndexChanged += ResultList_SelectedIndexChanged;
         outer.Controls.Add(_resultList, 0, 0);
 
-        var buttons = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 3, Margin = new Padding(0, 4, 0, 0) };
-        buttons.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 180));
-        buttons.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 130));
-        buttons.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        var buttons = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 2, Margin = new Padding(0, 4, 0, 0) };
+        buttons.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.33F));
+        buttons.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.33F));
+        buttons.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.34F));
+        buttons.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
+        buttons.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
+
+        ConfigureButton(_exportAoiButton, "导出AOI范围", Color.FromArgb(28, 92, 187), 42);
+        _exportAoiButton.Enabled = false;
+        _exportAoiButton.Click += ExportAoiButton_Click;
+        buttons.Controls.Add(_exportAoiButton, 0, 0);
+
+        ConfigureButton(_exportPoiButton, "导出周围POI点位", Color.FromArgb(8, 104, 72), 42);
+        _exportPoiButton.Enabled = false;
+        _exportPoiButton.Click += ExportPoiButton_Click;
+        buttons.Controls.Add(_exportPoiButton, 1, 0);
+
+        ConfigureButton(_exportMainPoiButton, "导出该点POI", Color.FromArgb(187, 112, 38), 42);
+        _exportMainPoiButton.Enabled = false;
+        _exportMainPoiButton.Click += ExportMainPoiButton_Click;
+        buttons.Controls.Add(_exportMainPoiButton, 2, 0);
 
         var openGeoButton = new Button();
-        ConfigureButton(openGeoButton, "打开 GeoJSON", Color.FromArgb(65, 122, 85), 34);
+        ConfigureButton(openGeoButton, "打开 GeoJSON", Color.FromArgb(65, 122, 85), 42);
         openGeoButton.Click += OpenGeoJsonButton_Click;
-        buttons.Controls.Add(openGeoButton, 0, 0);
+        buttons.Controls.Add(openGeoButton, 0, 1);
 
         var clearMapButton = new Button();
-        ConfigureButton(clearMapButton, "清空地图", Color.FromArgb(129, 77, 45), 34);
+        ConfigureButton(clearMapButton, "清空地图", Color.FromArgb(129, 77, 45), 42);
         clearMapButton.Click += (_, _) => ShowMapPlaceholder();
-        buttons.Controls.Add(clearMapButton, 1, 0);
+        buttons.Controls.Add(clearMapButton, 1, 1);
 
         outer.Controls.Add(buttons, 0, 1);
         group.Controls.Add(outer);
@@ -495,6 +568,7 @@ public partial class Form1 : Form
 
     private void AdjustListColumns()
     {
+        AdjustLastColumn(_excelPreviewList, 2, 140);
         AdjustLastColumn(_placesList, 2, 180);
         AdjustLastColumn(_resultList, 4, 220);
     }
@@ -623,17 +697,74 @@ public partial class Form1 : Form
         try
         {
             var imported = Exporters.ReadPlacesFromExcel(dialog.FileName);
-            foreach (var place in imported)
-            {
-                AddPlace(place);
-            }
-
-            AppendLog($"从 Excel 导入 {imported.Count} 条。");
+            _excelPreviewPlaces.Clear();
+            _excelPreviewPlaces.AddRange(imported);
+            RefreshExcelPreviewList();
+            AppendLog($"从 Excel 读取 {imported.Count} 条，已放入预览。");
         }
         catch (Exception ex)
         {
             MessageBox.Show(this, ex.Message, "导入失败", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
+    }
+
+    private void AddExcelSelectedButton_Click(object? sender, EventArgs e)
+    {
+        var indices = _excelPreviewList.SelectedIndices.Cast<int>().OrderDescending().ToList();
+        if (indices.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var index in indices.Order())
+        {
+            AddPlace(_excelPreviewPlaces[index]);
+        }
+
+        foreach (var index in indices)
+        {
+            _excelPreviewPlaces.RemoveAt(index);
+        }
+
+        RefreshExcelPreviewList();
+        AppendLog($"已添加 Excel 预览选中 {indices.Count} 条。");
+    }
+
+    private void AddExcelAllButton_Click(object? sender, EventArgs e)
+    {
+        var count = _excelPreviewPlaces.Count;
+        foreach (var place in _excelPreviewPlaces)
+        {
+            AddPlace(place);
+        }
+
+        _excelPreviewPlaces.Clear();
+        RefreshExcelPreviewList();
+        AppendLog($"已添加 Excel 预览全部 {count} 条。");
+    }
+
+    private void ClearExcelPreviewButton_Click(object? sender, EventArgs e)
+    {
+        _excelPreviewPlaces.Clear();
+        RefreshExcelPreviewList();
+    }
+
+    private void RefreshExcelPreviewList()
+    {
+        _excelPreviewList.Items.Clear();
+        foreach (var place in _excelPreviewPlaces)
+        {
+            var item = new ListViewItem(place.Label);
+            item.SubItems.Add(place.Uid ?? string.Empty);
+            item.SubItems.Add(place.Address ?? place.Query);
+            _excelPreviewList.Items.Add(item);
+        }
+
+        var hasPreview = _excelPreviewPlaces.Count > 0;
+        var running = _cancellationTokenSource is not null;
+        _addExcelSelectedButton.Enabled = hasPreview && !running;
+        _addExcelAllButton.Enabled = hasPreview && !running;
+        _clearExcelPreviewButton.Enabled = hasPreview && !running;
     }
 
     private void BrowseButton_Click(object? sender, EventArgs e)
@@ -732,7 +863,8 @@ public partial class Form1 : Form
             await semaphore.WaitAsync(cancellationToken);
             try
             {
-                var result = await new BaiduAoiCrawler(AppendLog).CrawlAsync(place, settings, cancellationToken);
+                var resolvedPlace = await ResolvePlaceForCrawlAsync(place, cancellationToken);
+                var result = await new BaiduAoiCrawler(AppendLog).CrawlAsync(resolvedPlace, settings, cancellationToken);
                 lock (resultLock)
                 {
                     _results.Add(result);
@@ -772,6 +904,34 @@ public partial class Form1 : Form
         }));
     }
 
+    private async Task<PlaceInput> ResolvePlaceForCrawlAsync(PlaceInput place, CancellationToken cancellationToken)
+    {
+        if (!_autoFirstCandidateBox.Checked || !string.IsNullOrWhiteSpace(place.Uid))
+        {
+            return place;
+        }
+
+        try
+        {
+            AppendLog($"[{place.Label}] 正在搜索候选，自动选择第一条...");
+            var suggestions = await _suggestionService.SearchAsync(place.Query, cancellationToken);
+            var first = suggestions.FirstOrDefault(s => !string.IsNullOrWhiteSpace(s.Uid)) ?? suggestions.FirstOrDefault();
+            if (first is null)
+            {
+                AppendLog($"[{place.Label}] 未找到候选，使用原始名称提取。");
+                return place;
+            }
+
+            AppendLog($"[{place.Label}] 已自动选择候选: {first.Name}");
+            return new PlaceInput(first.Name, first.Uid, first.Name, first.Address);
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"[{place.Label}] 自动候选失败，使用原始名称: {ex.Message}");
+            return place;
+        }
+    }
+
     private void CancelButton_Click(object? sender, EventArgs e)
     {
         _cancelButton.Enabled = false;
@@ -788,6 +948,9 @@ public partial class Form1 : Form
         _removeButton.Enabled = !running;
         _importExcelButton.Enabled = !running;
         _browseButton.Enabled = !running;
+        _addExcelSelectedButton.Enabled = !running && _excelPreviewPlaces.Count > 0;
+        _addExcelAllButton.Enabled = !running && _excelPreviewPlaces.Count > 0;
+        _clearExcelPreviewButton.Enabled = !running && _excelPreviewPlaces.Count > 0;
         _searchTextBox.ReadOnly = running;
         _outputTextBox.ReadOnly = running;
         _threadsBox.Enabled = !running;
@@ -797,6 +960,8 @@ public partial class Form1 : Form
         _debugBox.Enabled = !running;
         _excelBox.Enabled = !running;
         _geoJsonBox.Enabled = !running;
+        _autoFirstCandidateBox.Enabled = !running;
+        UpdateExportButtons();
     }
 
     private void AddResult(CrawlResult result, string status, string message)
@@ -811,7 +976,8 @@ public partial class Form1 : Form
         item.SubItems.Add(status);
         item.SubItems.Add(result.Points.Count.ToString(CultureInfo.InvariantCulture));
         item.SubItems.Add(result.Uid ?? string.Empty);
-        item.SubItems.Add(message);
+        var poiText = result.PoiPoints.Count > 0 ? $" | POI {result.PoiPoints.Count}" : string.Empty;
+        item.SubItems.Add(message + poiText);
         item.ForeColor = status == "成功" ? Color.FromArgb(18, 117, 58) : Color.FromArgb(176, 50, 50);
         _resultList.Items.Add(item);
         AdjustListColumns();
@@ -847,16 +1013,95 @@ public partial class Form1 : Form
         if (_resultList.SelectedItems.Count == 0)
         {
             ShowMapPlaceholder();
+            UpdateExportButtons();
             return;
         }
 
         if (_resultList.SelectedItems[0].Tag is not CrawlResult result || !result.Success || result.Points.Count < 3)
         {
             ShowMapPlaceholder();
+            UpdateExportButtons();
             return;
         }
 
         UpdateMapDisplay(result.PlaceName, result.Points);
+        UpdateExportButtons();
+    }
+
+    private void ExportAoiButton_Click(object? sender, EventArgs e)
+    {
+        ExportSelectedResult(exportAoi: true, exportPoi: false);
+    }
+
+    private void ExportPoiButton_Click(object? sender, EventArgs e)
+    {
+        ExportSelectedResult(exportAoi: false, exportPoi: true);
+    }
+
+    private void ExportMainPoiButton_Click(object? sender, EventArgs e)
+    {
+        if (SelectedResult() is not { } result)
+        {
+            return;
+        }
+
+        try
+        {
+            var outputDir = _outputTextBox.Text.Trim();
+            if (string.IsNullOrWhiteSpace(outputDir))
+            {
+                MessageBox.Show(this, "请选择输出目录。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            var path = Exporters.SaveMainPoiCsv(result, outputDir);
+            AppendLog($"[{result.PlaceName}] 已导出该点POI: {path}");
+            MessageBox.Show(this, $"已导出：{Environment.NewLine}{path}", "导出完成", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, ex.Message, "导出失败", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
+    private void ExportSelectedResult(bool exportAoi, bool exportPoi)
+    {
+        if (SelectedResult() is not { } result)
+        {
+            return;
+        }
+
+        try
+        {
+            var outputDir = _outputTextBox.Text.Trim();
+            if (string.IsNullOrWhiteSpace(outputDir))
+            {
+                MessageBox.Show(this, "请选择输出目录。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            var folder = Exporters.SaveSelectedFiles(result, outputDir, exportAoi, exportPoi);
+            AppendLog($"[{result.PlaceName}] 已导出到 {folder}");
+            MessageBox.Show(this, $"已导出到：{Environment.NewLine}{folder}", "导出完成", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, ex.Message, "导出失败", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
+    private CrawlResult? SelectedResult()
+    {
+        return _resultList.SelectedItems.Count == 0 ? null : _resultList.SelectedItems[0].Tag as CrawlResult;
+    }
+
+    private void UpdateExportButtons()
+    {
+        var running = _cancellationTokenSource is not null;
+        var result = SelectedResult();
+        _exportAoiButton.Enabled = !running && result is { Success: true } && result.Points.Count >= 3;
+        _exportPoiButton.Enabled = !running && result is { Success: true } && result.PoiPoints.Count > 0;
+        _exportMainPoiButton.Enabled = !running && result is { Success: true } && result.Points.Count > 0;
     }
 
     private void OpenGeoJsonButton_Click(object? sender, EventArgs e)

@@ -23,6 +23,53 @@ internal static class Exporters
         }
     }
 
+    public static string SaveSelectedFiles(CrawlResult result, string outputRoot, bool exportAoi, bool exportPoi)
+    {
+        var folder = Path.Combine(outputRoot, MakeSafeFileName(result.PlaceName));
+        Directory.CreateDirectory(folder);
+
+        if (exportAoi)
+        {
+            var stem = Path.Combine(folder, $"{MakeSafeFileName(result.PlaceName)}_AOI范围");
+            SaveCsv(result.Points, stem + ".csv");
+            SaveShapefile(result.PlaceName, result.Points, stem + ".shp");
+            SaveGeoJson(result, stem + ".geojson");
+        }
+
+        if (exportPoi)
+        {
+            var stem = Path.Combine(folder, $"{MakeSafeFileName(result.PlaceName)}_POI点");
+            SavePoiCsv(result.PoiPoints, stem + ".csv");
+            SavePoiShapefile(result.PlaceName, result.PoiPoints, stem + ".shp");
+        }
+
+        return folder;
+    }
+
+    public static string SaveMainPoiCsv(CrawlResult result, string outputRoot)
+    {
+        if (result.Points.Count == 0)
+        {
+            throw new InvalidOperationException("当前结果没有可导出的该点坐标。");
+        }
+
+        var folder = Path.Combine(outputRoot, MakeSafeFileName(result.PlaceName));
+        Directory.CreateDirectory(folder);
+        var path = Path.Combine(folder, $"{MakeSafeFileName(result.PlaceName)}_该点POI.csv");
+        var lon = result.Points.Average(p => p.X);
+        var lat = result.Points.Average(p => p.Y);
+
+        using var writer = new StreamWriter(path, false, new UTF8Encoding(true));
+        writer.WriteLine("name,latitude,longitude");
+        writer.Write('"');
+        writer.Write(EscapeCsv(result.PlaceName));
+        writer.Write("\",");
+        writer.Write(lat.ToString("F6", CultureInfo.InvariantCulture));
+        writer.Write(',');
+        writer.WriteLine(lon.ToString("F6", CultureInfo.InvariantCulture));
+        return path;
+    }
+
     public static void SaveBatchExcel(IReadOnlyList<CrawlResult> results, string outputDir)
     {
         Directory.CreateDirectory(outputDir);
@@ -133,6 +180,29 @@ internal static class Exporters
         }
     }
 
+    private static void SavePoiCsv(IReadOnlyList<PoiPoint> points, string path)
+    {
+        using var writer = new StreamWriter(path, false, new UTF8Encoding(true));
+        writer.WriteLine("name,latitude,longitude,uid,tag,address");
+
+        foreach (var point in points)
+        {
+            writer.Write('"');
+            writer.Write(EscapeCsv(point.Name));
+            writer.Write("\",");
+            writer.Write(point.Latitude.ToString("F6", CultureInfo.InvariantCulture));
+            writer.Write(',');
+            writer.Write(point.Longitude.ToString("F6", CultureInfo.InvariantCulture));
+            writer.Write(',');
+            writer.Write(EscapeCsv(point.Uid ?? string.Empty));
+            writer.Write(',');
+            writer.Write(EscapeCsv(point.Tag ?? string.Empty));
+            writer.Write(",\"");
+            writer.Write(EscapeCsv(point.Address ?? string.Empty));
+            writer.WriteLine('"');
+        }
+    }
+
     private static void SaveGeoJson(CrawlResult result, string path)
     {
         var ring = CloseRing(result.Points)
@@ -188,6 +258,23 @@ internal static class Exporters
         File.WriteAllText(basePath + ".cpg", "UTF-8", Encoding.ASCII);
     }
 
+    private static void SavePoiShapefile(string placeName, IReadOnlyList<PoiPoint> points, string shpPath)
+    {
+        if (points.Count == 0)
+        {
+            throw new InvalidOperationException("没有可导出的 POI 点。");
+        }
+
+        var aoiPoints = points.Select(p => new AoiPoint(p.Longitude, p.Latitude)).ToList();
+        var bbox = GetBoundingBox(aoiPoints);
+        var basePath = Path.Combine(Path.GetDirectoryName(shpPath) ?? string.Empty, Path.GetFileNameWithoutExtension(shpPath));
+        WritePointShp(basePath + ".shp", aoiPoints, bbox);
+        WritePointShx(basePath + ".shx", aoiPoints, bbox);
+        WritePoiDbf(basePath + ".dbf", placeName, points);
+        File.WriteAllText(basePath + ".prj", Wgs84Prj, Encoding.ASCII);
+        File.WriteAllText(basePath + ".cpg", "UTF-8", Encoding.ASCII);
+    }
+
     private static IReadOnlyList<AoiPoint> CloseRing(IReadOnlyList<AoiPoint> points)
     {
         var ring = new List<AoiPoint>(points.Count + 1);
@@ -233,7 +320,7 @@ internal static class Exporters
         WriteInt32BigEndian(writer, contentBytes / 2);
     }
 
-    private static void WriteHeader(BinaryWriter writer, int fileLengthWords, (double MinX, double MinY, double MaxX, double MaxY) bbox)
+    private static void WriteHeader(BinaryWriter writer, int fileLengthWords, (double MinX, double MinY, double MaxX, double MaxY) bbox, int shapeType = 5)
     {
         WriteInt32BigEndian(writer, 9994);
         for (var i = 0; i < 5; i++)
@@ -243,7 +330,7 @@ internal static class Exporters
 
         WriteInt32BigEndian(writer, fileLengthWords);
         writer.Write(1000);
-        writer.Write(5);
+        writer.Write(shapeType);
         writer.Write(bbox.MinX);
         writer.Write(bbox.MinY);
         writer.Write(bbox.MaxX);
@@ -269,6 +356,35 @@ internal static class Exporters
         {
             writer.Write(point.X);
             writer.Write(point.Y);
+        }
+    }
+
+    private static void WritePointShp(string path, IReadOnlyList<AoiPoint> points, (double MinX, double MinY, double MaxX, double MaxY) bbox)
+    {
+        using var stream = File.Create(path);
+        using var writer = new BinaryWriter(stream);
+        WriteHeader(writer, 50 + points.Count * 14, bbox, 1);
+        for (var i = 0; i < points.Count; i++)
+        {
+            WriteInt32BigEndian(writer, i + 1);
+            WriteInt32BigEndian(writer, 10);
+            writer.Write(1);
+            writer.Write(points[i].X);
+            writer.Write(points[i].Y);
+        }
+    }
+
+    private static void WritePointShx(string path, IReadOnlyList<AoiPoint> points, (double MinX, double MinY, double MaxX, double MaxY) bbox)
+    {
+        using var stream = File.Create(path);
+        using var writer = new BinaryWriter(stream);
+        WriteHeader(writer, 50 + points.Count * 4, bbox, 1);
+        var offset = 50;
+        foreach (var _ in points)
+        {
+            WriteInt32BigEndian(writer, offset);
+            WriteInt32BigEndian(writer, 10);
+            offset += 14;
         }
     }
 
@@ -298,6 +414,45 @@ internal static class Exporters
         writer.Write((byte)0x20);
         WriteDbfValue(writer, placeName, 80, alignRight: false, encoding);
         WriteDbfValue(writer, pointCount.ToString(CultureInfo.InvariantCulture), 10, alignRight: true, encoding);
+        writer.Write((byte)0x1A);
+    }
+
+    private static void WritePoiDbf(string path, string placeName, IReadOnlyList<PoiPoint> points)
+    {
+        var encoding = Encoding.UTF8;
+        var now = DateTime.Now;
+        const int fieldCount = 5;
+        const int headerLength = 32 + fieldCount * 32 + 1;
+        const int recordLength = 1 + 80 + 80 + 40 + 60 + 80;
+
+        using var stream = File.Create(path);
+        using var writer = new BinaryWriter(stream, encoding);
+        writer.Write((byte)0x03);
+        writer.Write((byte)(now.Year - 1900));
+        writer.Write((byte)now.Month);
+        writer.Write((byte)now.Day);
+        writer.Write(points.Count);
+        writer.Write((short)headerLength);
+        writer.Write((short)recordLength);
+        writer.Write(new byte[20]);
+
+        WriteDbfField(writer, "place", 'C', 80, 0);
+        WriteDbfField(writer, "name", 'C', 80, 0);
+        WriteDbfField(writer, "uid", 'C', 40, 0);
+        WriteDbfField(writer, "tag", 'C', 60, 0);
+        WriteDbfField(writer, "address", 'C', 80, 0);
+        writer.Write((byte)0x0D);
+
+        foreach (var point in points)
+        {
+            writer.Write((byte)0x20);
+            WriteDbfValue(writer, placeName, 80, alignRight: false, encoding);
+            WriteDbfValue(writer, point.Name, 80, alignRight: false, encoding);
+            WriteDbfValue(writer, point.Uid ?? string.Empty, 40, alignRight: false, encoding);
+            WriteDbfValue(writer, point.Tag ?? string.Empty, 60, alignRight: false, encoding);
+            WriteDbfValue(writer, point.Address ?? string.Empty, 80, alignRight: false, encoding);
+        }
+
         writer.Write((byte)0x1A);
     }
 
@@ -351,6 +506,8 @@ internal static class Exporters
 
         return builder.Length == 0 ? "未命名地点" : builder.ToString();
     }
+
+    private static string EscapeCsv(string value) => value.Replace("\"", "\"\"");
 
     private static string MakeWorksheetName(string placeName, XLWorkbook workbook)
     {

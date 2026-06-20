@@ -16,7 +16,7 @@ obj/
 *.user
 
 # Local release bundles
-BaiduAoiExtractor_EXE_Final/
+BaiduAoiExtractorPro.Win/
 final/
 *.zip
 BaiduAoiExtractor.Win/publish*/
