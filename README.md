@@ -4,29 +4,50 @@
 
 本项目用于从百度地图页面和后端响应中提取地点 AOI 边界、POI 点位，并导出为常见 GIS / 表格文件。
 
-## 当前版本
+## 怎么下载运行
 
-当前发布版本：`v1.1`
+### 普通用户推荐方式
 
-Windows 图形版发布文件夹：
+请到仓库页面右侧或顶部的 **Releases** 下载 Windows 压缩包。
 
-```text
-release-win/
-```
+不要优先点绿色 `Code -> Download ZIP`，因为本仓库的 `release-win` 使用了 Git LFS，直接下载源码 ZIP 时大文件可能不完整。
 
-进入该文件夹后双击运行：
+下载 Release 压缩包后：
+
+1. 完整解压整个压缩包。
+2. 进入解压后的运行文件夹。
+3. 双击运行：
 
 ```text
 BaiduAoiExtractor.Win.exe
 ```
 
-注意：不要只单独复制 exe。`release-win` 包含运行所需的 DLL、Playwright、浏览器文件和 .NET 运行时，需要整个文件夹一起使用。
+### 会使用 Git 的用户
 
-由于 `release-win` 文件夹较大，仓库使用 Git LFS 存放发布文件。克隆后如果发现文件很小或无法运行，请先安装 Git LFS，然后执行：
+也可以直接克隆仓库：
 
 ```bash
-git lfs install
+git clone https://github.com/Wukeeeeee/baidu-aoi-extractor.git
+cd baidu-aoi-extractor
 git lfs pull
+```
+
+然后运行：
+
+```text
+release-win/BaiduAoiExtractor.Win.exe
+```
+
+注意：`release-win` 必须完整下载。不要只复制单独的 exe，因为程序还依赖同目录下的 DLL、Playwright、浏览器文件和 .NET 运行时。
+
+## 当前版本
+
+当前发布版本：`v1.1`
+
+仓库内 Windows 图形版发布文件夹：
+
+```text
+release-win/
 ```
 
 ## 图形版主要功能
@@ -109,9 +130,13 @@ python aoi_extractor.py "广州塔" --debug
 
 ## 常见问题
 
-### 为什么只下载 exe 不能运行？
+### 为什么不建议直接点 Code -> Download ZIP？
 
-这是 WinForms + Playwright 程序，运行时需要同目录依赖文件、浏览器文件和 .NET 运行时。请使用完整的 `release-win` 文件夹。
+因为 `release-win` 里的大文件通过 Git LFS 管理，源码 ZIP 可能只包含 LFS 指针文件，不是真正的大文件。普通用户请优先下载 Releases 里的 Windows 压缩包。
+
+### 为什么只复制 exe 不能运行？
+
+这是 WinForms + Playwright 程序，运行时需要同目录依赖文件、浏览器文件和 .NET 运行时。请使用完整的运行文件夹。
 
 ### 为什么某些地点拿不到 AOI？
 
@@ -163,7 +188,7 @@ WinForms 项目文件：
 BaiduAoiExtractor.Win/BaiduAoiExtractor.Win.csproj
 ```
 
-发布 Windows x64 Final 文件夹：
+发布 Windows x64 运行文件夹：
 
 ```powershell
 dotnet publish .\BaiduAoiExtractor.Win\BaiduAoiExtractor.Win.csproj -c Release -r win-x64 --self-contained true -o .\release-win
