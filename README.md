@@ -1,195 +1,197 @@
-# 百度地图 AOI 边界提取工具
+# 百度地图 AOI 建筑轮廓 & POI 提取工具 / Baidu Map AOI & POI Extractor
 
-> 仅用于个人学习与研究。请遵守百度地图服务条款、数据授权要求和相关法律法规。
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3.9+-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python Version" />
+  <img src="https://img.shields.io/badge/Playwright-Automation-2EAD33?style=flat-square&logo=playwright&logoColor=white" alt="Playwright" />
+  <img src="https://img.shields.io/badge/FastAPI-Framework-009688?style=flat-square&logo=fastapi&logoColor=white" alt="FastAPI" />
+  <img src="https://img.shields.io/badge/CRS-WGS84%20(EPSG:4326)-212529?style=flat-square" alt="WGS84" />
+  <img src="https://img.shields.io/badge/License-MIT-black?style=flat-square" alt="License" />
+</p>
 
-本项目用于从百度地图页面和后端响应中提取地点 AOI 边界、POI 点位，并导出为常见 GIS / 表格文件。
+<p align="center">
+  <b>简体中文</b> | <a href="#english">English</a>
+</p>
 
-## 怎么下载运行
+---
 
-### 普通用户推荐方式
+## 免责声明 / Disclaimer
 
-请到仓库页面右侧或顶部的 **Releases** 下载 Windows 压缩包。
+1. **学术与研究用途**：本项目仅供地理信息系统（GIS）空间数据结构学习、坐标系纠偏算法研究及 Python 自动化技术交流使用。
+2. **遵守相关条款**：用户在使用本项目时，应严格遵守相关服务商的服务条款、反爬虫协议及相关法律法规。严禁将本项目用于任何商业牟利、未经授权的大规模爬取或任何破坏性活动。
+3. **责任界定**：本项目为纯技术研究开源项目，不内置、不提供、不存储任何地图矢量数据。使用本项目所产生的一切后果由使用者自行承担，开发者不承担任何直接或连带法律责任。
 
-不要优先点绿色 `Code -> Download ZIP`，因为本仓库的 `release-win` 使用了 Git LFS，直接下载源码 ZIP 时大文件可能不完整。
+---
 
-下载 Release 压缩包后：
+## 简体中文
 
-1. 完整解压整个压缩包。
-2. 进入解压后的运行文件夹。
-3. 双击运行：
+### 项目简介
 
-```text
-BaiduAoiExtractor.Win.exe
-```
+**Baidu AOI Extractor** 是一个现代、轻量、高可用的地理空间边界（AOI，Area of Interest）与 POI 数据提取工具。
 
-### 会使用 Git 的用户
+基于 Python 驱动与 Playwright 自动化拦截技术，无需逆向破解底层动态加密签名，即可从公开页面精准提取建筑物、商圈、学校、园区、景区的 **AOI 轮廓多边形** 与 **周边 POI 坐标**，并自动完成高精度坐标转换（`BD09MC` $\rightarrow$ `BD09` $\rightarrow$ `GCJ02` $\rightarrow$ `WGS84 (EPSG:4326)`），一键导出为标准的 GIS 矢量与表格文件。
 
-也可以直接克隆仓库：
+### 核心特性
+
+- **现代双栏工作台 (Web UI)**：极简高密度专业 GIS 工具设计，内置 Leaflet.js 交互式地图（支持 CARTO 灰度、OSM、卫星图切换）。
+- **全国毫秒级智能联想**：支持地点模糊检索与实时 Suggest 补全（支持“广州站”、“长沙南站”等枢纽与别名）。
+- **表格批量导入与解析**：支持 `.xlsx` / `.xls` / `.csv` 一键导入、自动列名识别与队列批量提取。
+- **严谨几何与坐标解算**：
+  - 自动处理多环（Multi-Polygon）前缀与正则分环清洗，彻底杜绝极点拉线 Bug。
+  - 全自动坐标转换链，输出标准 WGS84（EPSG:4326）通用坐标。
+- **全格式 GIS 导出**：
+  - **AOI 建筑边界**：Shapefile（面要素，含 `.prj` 投影与 `.cpg` UTF-8）、GeoJSON、CSV
+  - **周边 POI 点集**：Shapefile（点要素）、CSV
+  - **核心地点坐标**：点位 CSV
+  - **批量统计报表**：一键生成 Excel 汇总表（`.xlsx`）
+- **双模运行**：支持 Web 图形界面与 CLI 命令行自动化批量处理。
+
+### 快速开始
+
+#### 1. 克隆仓库与安装依赖
 
 ```bash
-git clone https://github.com/Wukeeeeee/baidu-aoi-extractor.git
+git clone https://github.com/your-username/baidu-aoi-extractor.git
 cd baidu-aoi-extractor
-git lfs pull
-```
 
-然后运行：
-
-```text
-release-win/BaiduAoiExtractor.Win.exe
-```
-
-注意：`release-win` 必须完整下载。不要只复制单独的 exe，因为程序还依赖同目录下的 DLL、Playwright、浏览器文件和 .NET 运行时。
-
-## 当前版本
-
-当前发布版本：`v1.1`
-
-仓库内 Windows 图形版发布文件夹：
-
-```text
-release-win/
-```
-
-## 图形版主要功能
-
-- 输入地点名或地址，搜索百度地图候选结果。
-- 支持 Excel 导入地点列表，先进入“Excel导入预览”，再手动添加选中或全部添加到待提取任务。
-- Excel 没有 UID 时，可勾选“无UID时自动选第一个候选”，提取时自动搜索并选择第一条候选。
-- 支持批量提取 AOI 边界。
-- 支持从后端响应中读取周围 POI 点位。
-- 右侧地图预览 AOI 边界。
-- 支持导出当前选中结果：
-  - `导出AOI范围`：导出 AOI 边界 CSV / GeoJSON / Shapefile。
-  - `导出周围POI点位`：导出周围 POI 点 CSV / Shapefile。
-  - `导出该点POI`：只导出当前地点本身一行 CSV，字段为 `name,latitude,longitude`。
-- 批量任务结束后可输出 Excel 汇总表。
-- 坐标输出为 WGS84 / EPSG:4326。
-
-## 输出结构
-
-批量自动导出会在输出目录生成 AOI 边界文件：
-
-```text
-{地点}_轮廓.csv
-{地点}_轮廓.shp
-{地点}_轮廓.shx
-{地点}_轮廓.dbf
-{地点}_轮廓.prj
-{地点}_轮廓.cpg
-{地点}_轮廓.geojson
-AOI导出汇总_yyyyMMdd_HHmmss.xlsx
-```
-
-在运行结果中选中某条记录后，点击导出按钮会创建以地点名命名的文件夹：
-
-```text
-输出目录/
-  地点名/
-    地点名_AOI范围.csv
-    地点名_AOI范围.geojson
-    地点名_AOI范围.shp/.shx/.dbf/.prj/.cpg
-    地点名_POI点.csv
-    地点名_POI点.shp/.shx/.dbf/.prj/.cpg
-    地点名_该点POI.csv
-```
-
-`该点POI.csv` 只包含三列：
-
-```csv
-name,latitude,longitude
-```
-
-## Python 版
-
-安装依赖：
-
-```bash
+# 安装依赖
 pip install -r requirements.txt
+
+# 安装 Playwright 浏览器内核
 python -m playwright install chromium
 ```
 
-运行示例：
+#### 2. 启动 Web 图形界面 (推荐)
+
+在 Windows 上双击 `start.bat`，或在终端执行：
 
 ```bash
-python aoi_extractor.py
-python aoi_extractor.py "广州塔"
-python aoi_extractor.py "广州塔" --show
-python aoi_extractor.py "广州塔" --debug
+python app.py
 ```
 
-## 工作原理
+服务启动后将自动在默认浏览器打开 `http://127.0.0.1:8765`。
 
-1. 使用 Playwright 打开百度地图页面。
-2. 在页面内搜索地点。
-3. 监听浏览器和百度地图后端网络响应。
-4. 从搜索响应中获取 UID 和候选 POI。
-5. 从详情响应 `detailConInfo` 中提取 `guoke_geo.geo`。
-6. 解析 BD09MC 坐标。
-7. 转换为 WGS84。
-8. 导出 CSV / GeoJSON / Shapefile / Excel。
+#### 3. CLI 命令行调用
 
-## 常见问题
+```bash
+# 单地点提取
+python aoi_extractor.py "广州塔"
 
-### 为什么不建议直接点 Code -> Download ZIP？
+# 显示浏览器执行（非无头模式）
+python aoi_extractor.py "广州塔" --show
 
-因为 `release-win` 里的大文件通过 Git LFS 管理，源码 ZIP 可能只包含 LFS 指针文件，不是真正的大文件。普通用户请优先下载 Releases 里的 Windows 压缩包。
+# 自定义导出路径
+python aoi_extractor.py "清华大学" --out ./my_outputs
+```
 
-### 为什么只复制 exe 不能运行？
-
-这是 WinForms + Playwright 程序，运行时需要同目录依赖文件、浏览器文件和 .NET 运行时。请使用完整的运行文件夹。
-
-### 为什么某些地点拿不到 AOI？
-
-可能原因：
-
-- 该地点在百度地图详情里没有 `guoke_geo.geo`。
-- 搜索候选不是带 AOI 的具体 POI。
-- 网络请求触发风控或返回空详情。
-- 百度地图页面结构或接口字段发生变化。
-
-建议打开“显示浏览器窗口”和“输出调试日志”观察实际搜索结果。
-
-## 版本更新日志
-
-### v1.1 - 2026-06-21
-
-本版本基于上一版 Final 图形界面继续改进，重点增强 Excel 批量导入、POI 点位导出和结果区按钮布局。
-
-新增内容：
-
-- 新增 `Excel导入预览` 区域：导入 Excel 后不会立即进入待提取任务，可 `添加选中`、`全部添加` 或 `清空预览`。
-- 新增 `无UID时自动选第一个候选` 选项：对没有 UID 的 Excel 任务，提取前自动搜索百度地图候选并选择第一条。
-- 新增 POI 点位解析：从百度地图后端 JSON 中递归读取常见 POI 坐标字段，并统一转换为 WGS84。
-- 新增结果区导出按钮：`导出AOI范围`、`导出周围POI点位`、`导出该点POI`。
-- 新增 `该点POI.csv` 导出，只输出当前地点本身一行，字段固定为 `name,latitude,longitude`。
-- 新增周围 POI 点位 CSV / Shapefile 导出。
-
-界面改进：
-
-- `运行控制` 移到底部。
-- `导入 Excel` 移入 `Excel导入预览` 区域。
-- `开始提取` 按钮增大并强化颜色。
-- 结果区按钮从一行改为两行，避免文字显示不全。
-- 结果列表信息中显示已读取的 POI 数量。
-
-与上一版的主要差别：
-
-- 上一版 Excel 导入会直接加入任务；v1.1 改为先预览再添加。
-- 上一版没有自动选择候选开关；v1.1 可对无 UID 任务自动选择第一条候选。
-- 上一版主要导出 AOI 边界；v1.1 增加周围 POI 点位和该点 POI 导出。
-- 上一版结果区按钮较少；v1.1 增加导出按钮并改成两行布局。
-- 上一版发布目录名称较长；v1.1 改为 `release-win`。
-
-## 开发
-
-WinForms 项目文件：
+### 目录结构
 
 ```text
-BaiduAoiExtractor.Win/BaiduAoiExtractor.Win.csproj
+baidu-aoi-extractor/
+├── app.py              # FastAPI Web 服务与 API 入口
+├── aoi_extractor.py    # CLI 命令行处理入口
+├── start.bat           # Windows 一键启动脚本
+├── core/               # 核心算法与爬虫模块
+│   ├── converter.py    # 坐标系纠偏、几何脱壳与 POI 解析
+│   ├── crawler.py      # Playwright 自动化与网络拦截
+│   └── exporter.py     # Shapefile / GeoJSON / CSV / Excel 导出引擎
+├── web/                # 前端界面
+│   └── index.html      # 现代化单页工作台 (Tailwind + Leaflet)
+├── output/             # 导出文件默认存储目录 (默认 gitignore)
+├── requirements.txt    # 依赖声明
+├── LICENSE             # MIT 开源协议
+└── README.md           # 中英文文档
 ```
 
-发布 Windows x64 运行文件夹：
+---
 
-```powershell
-dotnet publish .\BaiduAoiExtractor.Win\BaiduAoiExtractor.Win.csproj -c Release -r win-x64 --self-contained true -o .\release-win
+<span id="english"></span>
+
+## English
+
+### Introduction
+
+**Baidu AOI Extractor** is a modern, lightweight, and robust geospatial tool designed for extracting **AOI (Area of Interest) building outlines** and **surrounding POIs (Points of Interest)** from Baidu Map.
+
+Powered by Python and Playwright browser automation, it intercepts structured geospatial payload responses without requiring manual reverse-engineering of dynamic tokens. Coordinates are automatically transformed across projection layers (`BD09MC` $\rightarrow$ `BD09` $\rightarrow$ `GCJ02` $\rightarrow$ `WGS84 (EPSG:4326)`) and exported directly into standard GIS vector and tabular formats.
+
+### Key Features
+
+- **Modern 2-Panel Web Workbench**: Clean, high-density, professional desktop GIS interface with interactive Leaflet.js map preview (CARTO Light, OSM, and Satellite basemaps).
+- **Nationwide Fast Suggestion**: Sub-100ms keyword auto-complete and multi-region transit hub resolution (e.g., "Guangzhou Railway Station", "Changsha South Station").
+- **Batch Table Import**: Import `.xlsx`, `.xls`, or `.csv` files with automatic column recognition and queue management.
+- **Robust Geometric Parsing**:
+  - Regularized ring parsing and prefix stripping to completely eliminate polar coordinate glitches.
+  - Multi-layer transformation pipeline outputting standard WGS84 coordinates.
+- **Comprehensive GIS Export Formats**:
+  - **AOI Polygons**: Shapefile (Polygon with `.prj` and `.cpg`), GeoJSON, CSV.
+  - **Surrounding POIs**: Shapefile (Point), CSV.
+  - **Main Landmark POI**: Single-row CSV.
+  - **Batch Summary**: Consolidated `.xlsx` report.
+- **Dual Modes**: Intuitive Web UI and scriptable CLI automation.
+
+### Quick Start
+
+#### 1. Clone & Install Dependencies
+
+```bash
+git clone https://github.com/your-username/baidu-aoi-extractor.git
+cd baidu-aoi-extractor
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Install Playwright browser binaries
+python -m playwright install chromium
 ```
+
+#### 2. Launch Web UI (Recommended)
+
+Double-click `start.bat` on Windows, or run:
+
+```bash
+python app.py
+```
+
+The application will automatically launch and open `http://127.0.0.1:8765` in your default browser.
+
+#### 3. CLI Usage
+
+```bash
+# Extract single location
+python aoi_extractor.py "Canton Tower"
+
+# Run with visible browser window
+python aoi_extractor.py "Canton Tower" --show
+
+# Specify custom output directory
+python aoi_extractor.py "Tsinghua University" --out ./my_outputs
+```
+
+### Export Output Structure
+
+```text
+output/
+  LocationName/
+    LocationName_AOI范围.geojson
+    LocationName_AOI范围.shp
+    LocationName_AOI范围.shx
+    LocationName_AOI范围.dbf
+    LocationName_AOI范围.prj
+    LocationName_AOI范围.cpg
+    LocationName_AOI范围.csv
+    LocationName_POI点.shp
+    LocationName_POI点.shx
+    LocationName_POI点.dbf
+    LocationName_POI点.prj
+    LocationName_POI点.cpg
+    LocationName_POI点.csv
+    LocationName_该点POI.csv
+  AOI导出汇总_YYYYMMDD_HHMMSS.xlsx
+```
+
+---
+
+## 许可证 / License
+
+本项目基于 [MIT License](LICENSE) 许可发布。
+Released under the [MIT License](LICENSE).

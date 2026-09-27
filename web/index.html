@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AOI Extractor</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Leaflet CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    :root {
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background-color: #f1f3f5;
+      color: #212529;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* 极简灰度滚动条 */
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #ced4da; border-radius: 2px; }
+    ::-webkit-scrollbar-thumb:hover { background: #adb5bd; }
+
+    /* 地图定制 */
+    #map { height: 100%; width: 100%; background: #e9ecef; }
+    .leaflet-bar { border: 1px solid #ced4da !important; box-shadow: 0 1px 2px rgba(0,0,0,0.05) !important; border-radius: 3px !important; }
+    .leaflet-bar a { background-color: #ffffff !important; color: #495057 !important; border-bottom: 1px solid #dee2e6 !important; width: 26px !important; height: 26px !important; line-height: 26px !important; font-size: 12px !important; }
+    .leaflet-popup-content-wrapper { border-radius: 3px !important; box-shadow: 0 2px 8px rgba(0,0,0,0.08) !important; border: 1px solid #dee2e6 !important; padding: 0 !important; }
+    .leaflet-popup-content { margin: 0 !important; }
+
+    /* 纯粹黑白灰组件 */
+    .input-sm {
+      height: 26px;
+      padding: 0 8px;
+      font-size: 12px;
+      border: 1px solid #ced4da;
+      border-radius: 3px;
+      background: #ffffff;
+      color: #212529;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .input-sm:focus { border-color: #212529; }
+
+    .btn-dark {
+      height: 26px;
+      padding: 0 10px;
+      font-size: 12px;
+      font-weight: 500;
+      background: #212529;
+      color: #ffffff;
+      border: 1px solid #212529;
+      border-radius: 3px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .btn-dark:hover:not(:disabled) { background: #343a40; border-color: #343a40; }
+    .btn-dark:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .btn-light {
+      height: 26px;
+      padding: 0 8px;
+      font-size: 12px;
+      font-weight: 500;
+      background: #ffffff;
+      color: #495057;
+      border: 1px solid #ced4da;
+      border-radius: 3px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .btn-light:hover:not(:disabled) { background: #f8f9fa; color: #212529; border-color: #adb5bd; }
+    .btn-light:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* 黑白灰状态指示 */
+    .badge-status {
+      font-size: 10px;
+      padding: 1px 4px;
+      border-radius: 2px;
+      font-weight: 500;
+    }
+    .status-pending { color: #868e96; background: #f1f3f5; }
+    .status-running { color: #212529; background: #e9ecef; }
+    .status-success { color: #212529; background: #e9ecef; font-weight: 600; }
+    .status-fail { color: #495057; background: #dee2e6; text-decoration: line-through; }
+
+    /* Toast */
+    #toastContainer {
+      position: fixed;
+      bottom: 16px;
+      right: 16px;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      pointer-events: none;
+    }
+    .toast-msg {
+      pointer-events: auto;
+      padding: 6px 12px;
+      background: #212529;
+      color: #ffffff;
+      font-size: 11px;
+      border-radius: 3px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      animation: fadeIn 0.15s ease-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden bg-neutral-100 select-none">
+
+  <!-- 顶部导航栏 (黑白单色风格) -->
+  <header class="h-9 bg-white border-b border-neutral-200 px-3 flex items-center justify-between flex-shrink-0">
+    <div class="flex items-center space-x-2">
+      <i data-lucide="layers" class="w-3.5 h-3.5 text-neutral-800"></i>
+      <span class="text-xs font-semibold text-neutral-900 tracking-tight">AOI Extractor</span>
+      <span class="text-[10px] text-neutral-400 font-mono">v2.1</span>
+      <span class="text-neutral-300 mx-1">|</span>
+      <span class="text-[11px] text-neutral-500 hidden sm:inline">百度地图 AOI 建筑轮廓 & POI 提取工具 (WGS84)</span>
+    </div>
+
+    <div class="flex items-center space-x-2">
+      <button onclick="openOutputFolder()" class="btn-light h-5 px-2 text-[11px]">
+        <i data-lucide="folder" class="w-3 h-3 mr-1 text-neutral-500"></i>
+        <span>导出目录</span>
+      </button>
+      <div class="flex items-center space-x-1 text-[11px] text-neutral-500 pl-1.5 border-l border-neutral-200">
+        <span class="w-1.5 h-1.5 rounded-full bg-neutral-600"></span>
+        <span>服务就绪</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- 工作区: 双栏极简布局 -->
+  <main class="flex-1 flex overflow-hidden">
+    
+    <!-- 左侧工作台 (350px 宽度) -->
+    <section class="w-[350px] bg-white border-r border-neutral-200 flex flex-col overflow-hidden flex-shrink-0">
+      
+      <!-- 模式切换与操作栏 -->
+      <div class="p-2 border-b border-neutral-200 bg-neutral-50 flex items-center justify-between">
+        <div class="flex bg-neutral-200/80 p-0.5 rounded text-xs">
+          <button id="tabSingleBtn" onclick="switchInputTab('single')" class="px-2 py-0.5 rounded font-medium bg-white text-neutral-900 shadow-xs transition">
+            单点搜索
+          </button>
+          <button id="tabExcelBtn" onclick="switchInputTab('excel')" class="px-2 py-0.5 rounded font-medium text-neutral-600 hover:text-neutral-900 transition">
+            表格导入
+          </button>
+        </div>
+
+        <div class="flex items-center space-x-1">
+          <button id="startBatchBtn" onclick="startBatchCrawl()" class="btn-dark h-6 px-2.5 text-[11px]">
+            <i data-lucide="play" class="w-2.5 h-2.5 fill-current mr-1"></i>
+            <span>执行</span>
+          </button>
+          <button id="stopBatchBtn" onclick="stopBatchCrawl()" class="btn-light h-6 px-2 text-[11px]" disabled>
+            <i data-lucide="square" class="w-2.5 h-2.5 mr-1 text-neutral-500"></i>
+            <span>停止</span>
+          </button>
+          <button onclick="clearTasks()" class="btn-light h-6 px-1.5 text-neutral-400 hover:text-neutral-700" title="清空队列">
+            <i data-lucide="trash-2" class="w-3 h-3"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- 单点检索面板 -->
+      <div id="singleSearchArea" class="p-2 border-b border-neutral-100 flex flex-col space-y-1.5">
+        <div class="flex space-x-1">
+          <input type="text" id="singleQueryInput" placeholder="输入地点名称 (如: 广州塔、长沙南站)" 
+                 class="input-sm flex-1 text-xs"
+                 onkeydown="if(event.key==='Enter') searchSinglePlace()">
+          <button onclick="searchSinglePlace()" class="btn-dark text-xs">
+            <span>查询</span>
+          </button>
+        </div>
+
+        <!-- 候选下拉结果区 (检索后展开) -->
+        <div id="candidateWrap" class="hidden flex flex-col max-h-48 overflow-y-auto border border-neutral-200 rounded divide-y divide-neutral-100 bg-white">
+          <div id="candidateList" class="divide-y divide-neutral-100"></div>
+        </div>
+      </div>
+
+      <!-- 表格导入面板 (默认隐藏) -->
+      <div id="excelImportArea" class="p-2 border-b border-neutral-100 flex flex-col space-y-1.5 hidden">
+        <div class="flex space-x-1">
+          <input type="file" id="excelFileInput" accept=".xlsx,.xls,.csv" class="hidden" onchange="handleExcelUpload(event)">
+          <button onclick="document.getElementById('excelFileInput').click()" class="btn-light flex-1 text-xs">
+            <i data-lucide="upload" class="w-3 h-3 mr-1 text-neutral-500"></i>
+            <span>选择 Excel / CSV 文件</span>
+          </button>
+        </div>
+        <div class="text-[11px] text-neutral-500 flex justify-between items-center px-0.5">
+          <span>支持列: 地点 / name / uid</span>
+          <label class="flex items-center space-x-1 cursor-pointer select-none text-neutral-600">
+            <input type="checkbox" id="autoFirstCandCheckbox" checked class="rounded text-neutral-900 w-3 h-3">
+            <span>自动匹配</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- 进度指示条 -->
+      <div id="progressContainer" class="w-full bg-neutral-100 h-0.5 hidden">
+        <div id="progressBar" class="bg-neutral-900 h-0.5 transition-all duration-200" style="width: 0%"></div>
+      </div>
+
+      <!-- 任务列表核心表格区 -->
+      <div class="flex-1 flex flex-col overflow-hidden">
+        <div class="px-2.5 py-1 bg-neutral-50 border-b border-neutral-200 flex items-center justify-between text-[11px] text-neutral-500">
+          <span>任务队列 (<span id="taskTotalCount" class="font-mono font-medium text-neutral-800">0</span>)</span>
+          <div class="flex space-x-2 text-[10px] text-neutral-500">
+            <span>待处理: <b id="taskPendingCount" class="font-mono text-neutral-700">0</b></span>
+            <span>成功: <b id="taskSuccessCount" class="font-mono text-neutral-900">0</b></span>
+            <span>失败: <b id="taskFailCount" class="font-mono text-neutral-500">0</b></span>
+          </div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto bg-white">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead class="bg-neutral-50 text-neutral-400 sticky top-0 border-b border-neutral-100 text-[11px]">
+              <tr>
+                <th class="py-1 px-2 w-7 text-center">#</th>
+                <th class="py-1 px-2 font-normal">地点</th>
+                <th class="py-1 px-1 w-14 font-normal">状态</th>
+                <th class="py-1 px-1 w-12 text-center font-normal">AOI</th>
+                <th class="py-1 px-2 w-8 text-right font-normal"></th>
+              </tr>
+            </thead>
+            <tbody id="tasksTableBody" class="divide-y divide-neutral-100">
+              <tr>
+                <td colspan="5" class="p-8 text-center text-neutral-400 text-xs">
+                  暂无任务，输入地点或导入表格
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 底部导出栏 -->
+      <div class="p-2 border-t border-neutral-200 bg-neutral-50 flex flex-col space-y-1.5 flex-shrink-0">
+        <div class="flex items-center justify-between text-[11px] text-neutral-600 px-0.5">
+          <span class="truncate max-w-[190px]">当前: <b id="selectedPlaceLabel" class="text-neutral-900">未选择</b></span>
+          <button onclick="exportBatchSummaryExcel()" class="text-[11px] text-neutral-700 hover:text-neutral-950 underline">
+            汇总导出
+          </button>
+        </div>
+
+        <div class="grid grid-cols-3 gap-1">
+          <button onclick="exportCurrentItem('aoi')" class="btn-light h-6 text-[11px]">
+            AOI 范围
+          </button>
+          <button onclick="exportCurrentItem('pois')" class="btn-light h-6 text-[11px]">
+            周边 POI
+          </button>
+          <button onclick="exportCurrentItem('main_poi')" class="btn-light h-6 text-[11px]">
+            主点 POI
+          </button>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- 右侧: 地图与浮层控件 -->
+    <section class="flex-1 flex flex-col overflow-hidden relative bg-neutral-100">
+      
+      <!-- 地图主容器 -->
+      <div id="map" class="w-full h-full"></div>
+
+      <!-- 右上角地图工具浮层 (纯黑白单色) -->
+      <div class="absolute top-2.5 right-2.5 z-[1000] bg-white border border-neutral-300 rounded shadow-xs p-1 flex items-center space-x-1">
+        <button onclick="fitMapBounds()" class="p-1 hover:bg-neutral-100 rounded text-neutral-700 hover:text-neutral-950" title="缩放到 AOI 轮廓">
+          <i data-lucide="maximize" class="w-3.5 h-3.5"></i>
+        </button>
+        <button onclick="toggleMapLayer()" class="p-1 hover:bg-neutral-100 rounded text-neutral-700 hover:text-neutral-950" title="切换底图 (OSM / CARTO / 卫星)">
+          <i data-lucide="layers" class="w-3.5 h-3.5"></i>
+        </button>
+        <button onclick="clearMapLayers()" class="p-1 hover:bg-neutral-100 rounded text-neutral-700 hover:text-neutral-950" title="清除图层">
+          <i data-lucide="eraser" class="w-3.5 h-3.5"></i>
+        </button>
+        <span class="text-neutral-300">|</span>
+        <button onclick="toggleLogPanel()" id="logToggleBtn" class="px-1.5 py-0.5 hover:bg-neutral-100 rounded text-[11px] text-neutral-700 hover:text-neutral-950 flex items-center space-x-1">
+          <i data-lucide="terminal" class="w-3 h-3"></i>
+          <span>日志</span>
+        </button>
+      </div>
+
+      <!-- 底部可折叠日志抽屉 -->
+      <div id="logDrawer" class="hidden absolute bottom-0 left-0 right-0 h-40 bg-neutral-900 text-neutral-300 border-t border-neutral-800 z-[1000] flex flex-col p-2 font-mono text-[11px]">
+        <div class="flex items-center justify-between pb-1 mb-1 border-b border-neutral-800 text-neutral-500 text-[10px]">
+          <span class="flex items-center space-x-1">
+            <i data-lucide="terminal" class="w-3 h-3"></i>
+            <span>系统控制台日志</span>
+          </span>
+          <div class="flex space-x-2">
+            <button onclick="clearLogs()" class="hover:text-white">清空</button>
+            <button onclick="toggleLogPanel()" class="hover:text-white">收起 ✕</button>
+          </div>
+        </div>
+        <div id="logOutput" class="flex-1 overflow-y-auto space-y-0.5 custom-scrollbar text-neutral-300">
+          <div class="text-neutral-500">[System] 引擎就绪。</div>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- 全局轻量 Toast -->
+  <div id="toastContainer"></div>
+
+  <script>
+    // ===== 全局状态 =====
+    let candidateResults = [];
+    let tasksList = [];
+    let selectedTaskId = null;
+    let isCrawling = false;
+
+    // ===== 地图初始化 =====
+    let map = null;
+    let aoiPolygonLayer = null;
+    let poisMarkerGroup = null;
+    let baseLayers = {};
+    let currentBaseLayer = 'carto';
+
+    function initLeafletMap() {
+      map = L.map('map', {
+        center: [39.9042, 116.4074],
+        zoom: 12,
+        zoomControl: false
+      });
+      L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+      // 默认使用极简高雅的 CARTO 浅灰底图
+      baseLayers['carto'] = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        maxZoom: 19,
+        attribution: '© CARTO'
+      }).addTo(map);
+
+      baseLayers['osm'] = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '© OSM'
+      });
+
+      baseLayers['satellite'] = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 18,
+        attribution: '© Esri'
+      });
+
+      poisMarkerGroup = L.layerGroup().addTo(map);
+    }
+
+    function toggleMapLayer() {
+      map.removeLayer(baseLayers[currentBaseLayer]);
+      if (currentBaseLayer === 'carto') currentBaseLayer = 'osm';
+      else if (currentBaseLayer === 'osm') currentBaseLayer = 'satellite';
+      else currentBaseLayer = 'carto';
+      baseLayers[currentBaseLayer].addTo(map);
+      showToast(`底图: ${currentBaseLayer.toUpperCase()}`);
+    }
+
+    function clearMapLayers() {
+      if (aoiPolygonLayer) {
+        map.removeLayer(aoiPolygonLayer);
+        aoiPolygonLayer = null;
+      }
+      if (poisMarkerGroup) {
+        poisMarkerGroup.clearLayers();
+      }
+    }
+
+    function fitMapBounds() {
+      if (aoiPolygonLayer) {
+        map.fitBounds(aoiPolygonLayer.getBounds(), { padding: [30, 30], maxZoom: 17 });
+      }
+    }
+
+    // ===== 模式切换 =====
+    function switchInputTab(tab) {
+      const singleBtn = document.getElementById('tabSingleBtn');
+      const excelBtn = document.getElementById('tabExcelBtn');
+      const singleArea = document.getElementById('singleSearchArea');
+      const excelArea = document.getElementById('excelImportArea');
+
+      if (tab === 'single') {
+        singleBtn.className = 'px-2 py-0.5 rounded font-medium bg-white text-neutral-900 shadow-xs transition';
+        excelBtn.className = 'px-2 py-0.5 rounded font-medium text-neutral-600 hover:text-neutral-900 transition';
+        singleArea.classList.remove('hidden');
+        excelArea.classList.add('hidden');
+      } else {
+        excelBtn.className = 'px-2 py-0.5 rounded font-medium bg-white text-neutral-900 shadow-xs transition';
+        singleBtn.className = 'px-2 py-0.5 rounded font-medium text-neutral-600 hover:text-neutral-900 transition';
+        excelArea.classList.remove('hidden');
+        singleArea.classList.add('hidden');
+      }
+    }
+
+    function toggleLogPanel() {
+      const drawer = document.getElementById('logDrawer');
+      drawer.classList.toggle('hidden');
+    }
+
+    // ===== Toast 提示 =====
+    function showToast(msg) {
+      const container = document.getElementById('toastContainer');
+      const item = document.createElement('div');
+      item.className = 'toast-msg';
+      item.textContent = msg;
+      container.appendChild(item);
+      setTimeout(() => {
+        item.style.opacity = '0';
+        item.style.transition = 'opacity 0.2s';
+        setTimeout(() => item.remove(), 200);
+      }, 1800);
+    }
+
+    // ===== 日志系统 =====
+    function log(msg) {
+      const output = document.getElementById('logOutput');
+      const item = document.createElement('div');
+      const time = new Date().toLocaleTimeString();
+      item.innerHTML = `<span class="text-neutral-500">[${time}]</span> ${escapeHtml(msg)}`;
+      output.appendChild(item);
+      output.scrollTop = output.scrollHeight;
+    }
+
+    function clearLogs() {
+      document.getElementById('logOutput').innerHTML = '';
+    }
+
+    // ===== 单点检索 =====
+    async function searchSinglePlace() {
+      const q = document.getElementById('singleQueryInput').value.trim();
+      if (!q) return;
+
+      log(`检索地点: "${q}" ...`);
+      const wrap = document.getElementById('candidateWrap');
+      const list = document.getElementById('candidateList');
+      wrap.classList.remove('hidden');
+      list.innerHTML = `<div class="p-3 text-center text-neutral-400 text-xs">正在搜索匹配地点...</div>`;
+
+      try {
+        const resp = await fetch('/api/search', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: q })
+        });
+        const data = await resp.json();
+        candidateResults = data.candidates || [];
+        renderCandidates();
+      } catch (err) {
+        log(`检索失败: ${err.message}`);
+        list.innerHTML = `<div class="p-3 text-center text-neutral-600 text-xs">检索异常: ${escapeHtml(err.message)}</div>`;
+      }
+    }
+
+    function renderCandidates() {
+      const wrap = document.getElementById('candidateWrap');
+      const list = document.getElementById('candidateList');
+
+      if (!candidateResults || candidateResults.length === 0) {
+        list.innerHTML = `<div class="p-3 text-center text-neutral-400 text-xs">未搜索到相关地点</div>`;
+        return;
+      }
+
+      list.innerHTML = candidateResults.map((c, idx) => `
+        <div class="p-2 hover:bg-neutral-50 flex items-center justify-between text-xs group cursor-pointer" onclick="addTaskFromCandidate(${idx})">
+          <div class="truncate mr-2">
+            <div class="font-medium text-neutral-800 truncate">${idx + 1}. ${escapeHtml(c.name)}</div>
+            <div class="text-[10px] text-neutral-400 truncate">${escapeHtml(c.address || c.uid || '')}</div>
+          </div>
+          <button class="btn-light h-5 px-1.5 text-[10px] flex-shrink-0 opacity-80 group-hover:opacity-100">
+            + 加入
+          </button>
+        </div>
+      `).join('');
+    }
+
+    function addTaskFromCandidate(idx) {
+      const c = candidateResults[idx];
+      if (!c) return;
+      addTask({ name: c.name, uid: c.uid, address: c.address });
+      showToast(`已添加: ${c.name}`);
+      document.getElementById('candidateWrap').classList.add('hidden');
+      document.getElementById('singleQueryInput').value = '';
+    }
+
+    // ===== 表格导入 =====
+    async function handleExcelUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const formData = new FormData();
+      formData.append('file', file);
+      log(`解析表格: ${file.name} ...`);
+
+      try {
+        const resp = await fetch('/api/import-excel', { method: 'POST', body: formData });
+        const data = await resp.json();
+        if (data.success && data.rows) {
+          let count = 0;
+          data.rows.forEach(row => {
+            if (row && row.name) {
+              addTask({ name: row.name, uid: row.uid || '', address: row.address || '' });
+              count++;
+            }
+          });
+          showToast(`已导入 ${count} 条记录`);
+          log(`成功批量加入 ${count} 条任务`);
+        } else {
+          showToast('导入解析失败');
+        }
+      } catch (err) {
+        showToast('解析异常: ' + err.message);
+      }
+      event.target.value = '';
+    }
+
+    // ===== 任务队列管理 =====
+    function addTask(item) {
+      const task = {
+        id: 'task_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+        name: item.name,
+        uid: item.uid || '',
+        address: item.address || '',
+        status: 'pending',
+        points_count: 0,
+        pois_count: 0,
+        wgs84_points: [],
+        geojson: null,
+        pois: [],
+        main_poi: null,
+        error: ''
+      };
+      tasksList.push(task);
+      renderTasksTable();
+      return task;
+    }
+
+    function clearTasks() {
+      if (isCrawling) {
+        showToast('提取中无法清空');
+        return;
+      }
+      tasksList = [];
+      selectedTaskId = null;
+      renderTasksTable();
+      clearMapLayers();
+      document.getElementById('selectedPlaceLabel').textContent = '未选择';
+    }
+
+    function renderTasksTable() {
+      const tbody = document.getElementById('tasksTableBody');
+      const totalCount = tasksList.length;
+      const pendingCount = tasksList.filter(t => t.status === 'pending').length;
+      const successCount = tasksList.filter(t => t.status === 'success').length;
+      const failCount = tasksList.filter(t => t.status === 'fail').length;
+
+      document.getElementById('taskTotalCount').textContent = totalCount;
+      document.getElementById('taskPendingCount').textContent = pendingCount;
+      document.getElementById('taskSuccessCount').textContent = successCount;
+      document.getElementById('taskFailCount').textContent = failCount;
+
+      if (totalCount === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="5" class="p-8 text-center text-neutral-400 text-xs">
+              暂无任务，输入地点或导入表格
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = tasksList.map((t, idx) => {
+        let statusBadge = '';
+        if (t.status === 'pending') statusBadge = '<span class="badge-status status-pending">待处理</span>';
+        else if (t.status === 'running') statusBadge = '<span class="badge-status status-running animate-pulse">提取中</span>';
+        else if (t.status === 'success') statusBadge = '<span class="badge-status status-success">成功</span>';
+        else if (t.status === 'fail') statusBadge = '<span class="badge-status status-fail">失败</span>';
+
+        const isSelected = t.id === selectedTaskId;
+        return `
+          <tr class="hover:bg-neutral-50 cursor-pointer ${isSelected ? 'bg-neutral-100 font-medium' : ''}" onclick="selectTaskRow('${t.id}')">
+            <td class="py-1 px-2 text-center text-neutral-400 font-mono text-[10px]">${idx + 1}</td>
+            <td class="py-1 px-2 text-neutral-800 truncate max-w-[130px]" title="${escapeHtml(t.name)}">${escapeHtml(t.name)}</td>
+            <td class="py-1 px-1">${statusBadge}</td>
+            <td class="py-1 px-1 text-center font-mono text-[11px] ${t.points_count > 0 ? 'text-neutral-900 font-bold' : 'text-neutral-300'}">${t.points_count || '-'}</td>
+            <td class="py-1 px-2 text-right">
+              <button onclick="event.stopPropagation(); removeTask('${t.id}')" class="text-neutral-300 hover:text-neutral-800 p-0.5">
+                ✕
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+      lucide.createIcons();
+    }
+
+    function selectTaskRow(id) {
+      selectedTaskId = id;
+      const task = tasksList.find(t => t.id === id);
+      renderTasksTable();
+
+      if (task) {
+        document.getElementById('selectedPlaceLabel').textContent = task.name;
+        if (task.status === 'success') {
+          renderTaskOnMap(task);
+        }
+      }
+    }
+
+    function removeTask(id) {
+      tasksList = tasksList.filter(t => t.id !== id);
+      if (selectedTaskId === id) selectedTaskId = null;
+      renderTasksTable();
+    }
+
+    // ===== 地图渲染 (单色专业 GIS 配色) =====
+    function renderTaskOnMap(task) {
+      clearMapLayers();
+      if (!task || !map) return;
+
+      map.invalidateSize();
+
+      // 渲染 AOI 面: 黑边框 + 浅灰透明填充
+      if (task.wgs84_points && task.wgs84_points.length >= 3) {
+        const latlngs = task.wgs84_points.map(p => [p[1], p[0]]);
+        aoiPolygonLayer = L.polygon(latlngs, {
+          color: '#111827',
+          weight: 2,
+          fillColor: '#374151',
+          fillOpacity: 0.25
+        }).addTo(map);
+
+        aoiPolygonLayer.bindPopup(`
+          <div class="p-2 text-xs font-sans">
+            <div class="font-bold text-neutral-900 mb-1">${escapeHtml(task.name)}</div>
+            <div class="text-neutral-500 text-[11px]">AOI 顶点: ${task.points_count} | WGS84</div>
+          </div>
+        `, { autoClose: false });
+
+        map.fitBounds(aoiPolygonLayer.getBounds(), { padding: [30, 30], maxZoom: 17 });
+        setTimeout(() => aoiPolygonLayer && aoiPolygonLayer.openPopup(), 150);
+      } else if (task.main_poi && task.main_poi.latitude) {
+        map.setView([task.main_poi.latitude, task.main_poi.longitude], 16);
+      }
+
+      // 渲染周边 POI: 深灰单重点
+      if (task.pois && task.pois.length > 0) {
+        task.pois.forEach(poi => {
+          if (poi.latitude && poi.longitude) {
+            const marker = L.circleMarker([poi.latitude, poi.longitude], {
+              radius: 3,
+              fillColor: '#111827',
+              color: '#ffffff',
+              weight: 1,
+              opacity: 1,
+              fillOpacity: 0.8
+            });
+            marker.bindPopup(`<div class="p-1.5 text-[11px] font-sans"><b>${escapeHtml(poi.name)}</b></div>`);
+            poisMarkerGroup.addLayer(marker);
+          }
+        });
+      }
+    }
+
+    // ===== 提取逻辑 =====
+    async function runSingleTask(id) {
+      const task = tasksList.find(t => t.id === id);
+      if (!task) return;
+
+      task.status = 'running';
+      renderTasksTable();
+      log(`提取: [${task.name}] ...`);
+
+      try {
+        const resp = await fetch('/api/extract-single', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: task.name,
+            uid: task.uid,
+            headless: true
+          })
+        });
+        const res = await resp.json();
+        if (res.success) {
+          task.status = 'success';
+          task.uid = res.uid || task.uid;
+          task.points_count = res.points_count;
+          task.wgs84_points = res.wgs84_points;
+          task.geojson = res.geojson;
+          task.pois = res.pois || [];
+          task.pois_count = (res.pois || []).length;
+          task.main_poi = res.main_poi;
+          selectTaskRow(task.id);
+          log(`[${task.name}] 成功 (${res.points_count} 顶点)`);
+          showToast(`[${task.name}] 提取成功`);
+        } else {
+          task.status = 'fail';
+          task.error = res.error || '失败';
+          log(`[${task.name}] 失败: ${task.error}`);
+          showToast(`[${task.name}] 提取失败`);
+        }
+      } catch (err) {
+        task.status = 'fail';
+        task.error = err.message;
+        log(`[${task.name}] 异常: ${err.message}`);
+      }
+
+      renderTasksTable();
+    }
+
+    async function startBatchCrawl() {
+      const pendingTasks = tasksList.filter(t => t.status === 'pending');
+      if (pendingTasks.length === 0) {
+        showToast('队列无待处理任务');
+        return;
+      }
+
+      isCrawling = true;
+      document.getElementById('startBatchBtn').disabled = true;
+      document.getElementById('stopBatchBtn').disabled = false;
+      document.getElementById('progressContainer').classList.remove('hidden');
+
+      log(`批量执行开始 (共 ${pendingTasks.length} 个任务)...`);
+
+      for (let i = 0; i < tasksList.length; i++) {
+        if (!isCrawling) break;
+        const task = tasksList[i];
+        if (task.status !== 'pending') continue;
+
+        const progress = Math.round(((i + 1) / tasksList.length) * 100);
+        document.getElementById('progressBar').style.width = progress + '%';
+
+        await runSingleTask(task.id);
+
+        if (i < tasksList.length - 1 && isCrawling) {
+          await new Promise(r => setTimeout(r, 1200));
+        }
+      }
+
+      isCrawling = false;
+      document.getElementById('startBatchBtn').disabled = false;
+      document.getElementById('stopBatchBtn').disabled = true;
+      log(`批量执行完毕。`);
+      showToast('批量提取完成');
+    }
+
+    function stopBatchCrawl() {
+      isCrawling = false;
+      document.getElementById('stopBatchBtn').disabled = true;
+      log(`停止批量任务。`);
+      showToast('已停止');
+    }
+
+    // ===== 导出 =====
+    async function exportCurrentItem(type) {
+      if (!selectedTaskId) {
+        showToast('请先选择一条记录');
+        return;
+      }
+      const task = tasksList.find(t => t.id === selectedTaskId);
+      if (!task || task.status !== 'success') {
+        showToast('选中记录尚未提取成功');
+        return;
+      }
+
+      log(`导出 [${task.name}] ${type} ...`);
+      try {
+        const resp = await fetch('/api/export-item', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ task: task, type: type })
+        });
+        const res = await resp.json();
+        if (res.success) {
+          log(`导出完成: ${res.output_path}`);
+          showToast(`已导出: ${task.name}`);
+        } else {
+          showToast('导出失败: ' + res.error);
+        }
+      } catch (err) {
+        showToast('导出异常: ' + err.message);
+      }
+    }
+
+    async function exportBatchSummaryExcel() {
+      const successTasks = tasksList.filter(t => t.status === 'success');
+      if (successTasks.length === 0) {
+        showToast('暂无提取成功的记录');
+        return;
+      }
+
+      log(`生成 Excel 汇总表...`);
+      try {
+        const resp = await fetch('/api/export-summary', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tasks: tasksList })
+        });
+        const res = await resp.json();
+        if (res.success) {
+          log(`汇总表生成成功: ${res.output_path}`);
+          showToast('Excel 汇总表已生成');
+        } else {
+          showToast('导出失败');
+        }
+      } catch (err) {
+        showToast('导出异常: ' + err.message);
+      }
+    }
+
+    async function openOutputFolder() {
+      try {
+        await fetch('/api/open-output-dir', { method: 'POST' });
+      } catch (e) {}
+    }
+
+    function escapeHtml(str) {
+      return (str || '').replace(/[&<>"']/g, m => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
+      }[m]));
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      initLeafletMap();
+      log("系统就绪。");
+    });
+  </script>
+</body>
+</html>

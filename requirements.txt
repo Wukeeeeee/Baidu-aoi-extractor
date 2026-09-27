@@ -1,4 +1,8 @@
 playwright>=1.40.0
-transbigdata>=0.4.0
+fastapi>=0.100.0
+uvicorn>=0.20.0
 geopandas>=0.14.0
 shapely>=2.0.0
+pandas>=2.0.0
+openpyxl>=3.1.0
+transbigdata>=0.5.0
