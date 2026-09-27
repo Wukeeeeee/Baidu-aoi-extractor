@@ -1,4 +1,4 @@
-# 百度地图 AOI 建筑轮廓 & POI 提取工具 / Baidu Map AOI & POI Extractor
+# Baidu AOI Extractor
 
 <p align="center">
   <img src="https://img.shields.io/badge/Python-3.9+-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python Version" />
