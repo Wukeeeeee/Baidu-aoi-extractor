@@ -350,32 +350,70 @@
       });
       L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-      // 默认使用极简高雅的 CARTO 浅灰底图
+      // 1. 必应中国 (国内直连极速且稳定，WGS84 投影)
+      baseLayers['bing'] = L.tileLayer('https://dynamic.t{s}.tiles.ditu.live.com/comp/ch/{quadkey}?mkt=zh-cn&ur=cn&it=G,OS,L&og=1&n=z', {
+        subdomains: ['0', '1', '2', '3'],
+        maxZoom: 19,
+        attribution: '© Microsoft Bing',
+        // Leaflet 计算 Bing QuadKey 辅助函数
+        quadkey: function(data) {
+          let quad = '';
+          for (let i = data.z; i > 0; i--) {
+            let digit = 0;
+            const mask = 1 << (i - 1);
+            if ((data.x & mask) !== 0) digit++;
+            if ((data.y & mask) !== 0) digit += 2;
+            quad += digit;
+          }
+          return quad;
+        }
+      });
+
+      // 2. 高德矢量底图 (国内秒开)
+      baseLayers['amap'] = L.tileLayer('https://wprd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=7&x={x}&y={y}&z={z}', {
+        subdomains: ['1', '2', '3', '4'],
+        maxZoom: 19,
+        attribution: '© AutoNavi 高德'
+      }).addTo(map);
+
+      // 3. 高德影像卫星底图 (国内秒开)
+      baseLayers['satellite'] = L.tileLayer('https://wprd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=6&x={x}&y={y}&z={z}', {
+        subdomains: ['1', '2', '3', '4'],
+        maxZoom: 18,
+        attribution: '© AutoNavi 卫星'
+      });
+
+      // 4. CARTO 灰度底图 (备用)
       baseLayers['carto'] = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
         maxZoom: 19,
         attribution: '© CARTO'
-      }).addTo(map);
+      });
 
+      // 5. OpenStreetMap (备用)
       baseLayers['osm'] = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
         attribution: '© OSM'
       });
 
-      baseLayers['satellite'] = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-        maxZoom: 18,
-        attribution: '© Esri'
-      });
-
+      currentBaseLayer = 'amap';
       poisMarkerGroup = L.layerGroup().addTo(map);
     }
 
     function toggleMapLayer() {
       map.removeLayer(baseLayers[currentBaseLayer]);
-      if (currentBaseLayer === 'carto') currentBaseLayer = 'osm';
-      else if (currentBaseLayer === 'osm') currentBaseLayer = 'satellite';
-      else currentBaseLayer = 'carto';
+      const layerOrder = ['amap', 'satellite', 'bing', 'carto', 'osm'];
+      const nextIdx = (layerOrder.indexOf(currentBaseLayer) + 1) % layerOrder.length;
+      currentBaseLayer = layerOrder[nextIdx];
       baseLayers[currentBaseLayer].addTo(map);
-      showToast(`底图: ${currentBaseLayer.toUpperCase()}`);
+      
+      const layerNames = {
+        'amap': '高德地图 (国内极速)',
+        'satellite': '高德卫星影像 (国内极速)',
+        'bing': 'Bing 必应中国',
+        'carto': 'CARTO 浅灰底图',
+        'osm': 'OpenStreetMap'
+      };
+      showToast(`底图: ${layerNames[currentBaseLayer] || currentBaseLayer.toUpperCase()}`);
     }
 
     function clearMapLayers() {
