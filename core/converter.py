@@ -206,3 +206,137 @@ def extract_pois_from_raw_json(data: Any) -> List[Dict[str, Any]]:
 
     _traverse(data)
     return results
+
+
+# ---------------------------------------------------------------------------
+# 住宅小区（Community AOI）支持
+#
+# 实测结论（2026-10，曹杨新村/望京样本）：
+#   - 住宅小区的 detail 响应里 guoke_geo.geo 只有一个中心点，没有边界；
+#   - 真实建筑轮廓在 ext.detail_info.guoke_geo_bud.bud_geom，标准 WKT（POLYGON），
+#     坐标为 BD09MC 墨卡托，空格分隔；
+#   - guoke_geo_bud.belong_aoi 是该楼所属 AOI 组的 uid，
+#     用它再查一次 detail 可拿到整个小区的全部建筑。
+# ---------------------------------------------------------------------------
+
+
+def extract_buildings_from_detail_json(data: Any) -> List[Dict[str, Any]]:
+    """
+    递归收集 detail 响应中所有 guoke_geo_bud 建筑条目（WKT bud_geom）。
+    无论响应是单小区详情还是 AOI 组详情，结构都可能是嵌套 dict/list，统一递归。
+    """
+    results: List[Dict[str, Any]] = []
+    seen = set()
+
+    def _walk(node: Any) -> None:
+        if isinstance(node, dict):
+            bud = node.get("guoke_geo_bud")
+            if isinstance(bud, dict) and bud.get("bud_geom"):
+                key = bud.get("face_id") or str(bud.get("bud_geom"))[:80]
+                if key not in seen:
+                    seen.add(key)
+                    results.append({
+                        "face_id": str(bud.get("face_id") or ""),
+                        "wkt": str(bud.get("bud_geom") or ""),
+                        "height": str(bud.get("height") or ""),
+                        "belong_aoi": str(bud.get("belong_aoi") or ""),
+                    })
+            for v in node.values():
+                _walk(v)
+        elif isinstance(node, list):
+            for item in node:
+                _walk(item)
+
+    _walk(data)
+    return results
+
+
+def extract_belong_aoi(data: Any) -> str:
+    """递归查找响应中的 belong_aoi（AOI 组 uid），即便没有 bud_geom 也要拿到它"""
+    found = ""
+
+    def _walk(node: Any) -> None:
+        nonlocal found
+        if found:
+            return
+        if isinstance(node, dict):
+            bud = node.get("guoke_geo_bud")
+            if isinstance(bud, dict) and bud.get("belong_aoi"):
+                found = str(bud["belong_aoi"])
+                return
+            for v in node.values():
+                _walk(v)
+        elif isinstance(node, list):
+            for item in node:
+                _walk(item)
+
+    _walk(data)
+    return found
+
+
+def parse_wkt_polygon(wkt: str) -> List[Tuple[float, float]]:
+    """
+    解析 POLYGON ((x y, x y, ...)) 为 MC 坐标点列表。
+    注意 WKT 是「空格分隔 xy、逗号分隔点」，与百度自定义 geo 字符串不同，不能混用。
+    MULTIPOLYGON 时取第一个面。
+    """
+    if not wkt or not isinstance(wkt, str):
+        return []
+    m = re.search(r"\(\(([^)]+)\)", wkt)
+    if not m:
+        return []
+    pts: List[Tuple[float, float]] = []
+    for pair in m.group(1).split(","):
+        parts = pair.strip().split()
+        if len(parts) >= 2:
+            try:
+                pts.append((float(parts[0]), float(parts[1])))
+            except ValueError:
+                continue
+    return pts
+
+
+def merge_building_polygons(wgs_rings: List[List[Tuple[float, float]]]) -> List[List[Tuple[float, float]]]:
+    """
+    把多栋建筑轮廓合并为小区边界（shapely unary_union）。
+    返回外环列表（多部件时返回多个环）。合并失败时退化为最长的一个环。
+    """
+    if not wgs_rings:
+        return []
+    try:
+        from shapely.geometry import Polygon as _ShapelyPolygon
+        from shapely.ops import unary_union
+    except ImportError:
+        return max(wgs_rings, key=len)
+
+    geoms = []
+    for ring in wgs_rings:
+        if len(ring) < 3:
+            continue
+        closed = ring if ring[0] == ring[-1] else ring + [ring[0]]
+        try:
+            poly = _ShapelyPolygon(closed)
+            if not poly.is_valid:
+                poly = poly.buffer(0)
+            if not poly.is_empty:
+                geoms.append(poly)
+        except Exception:
+            continue
+
+    if not geoms:
+        return []
+
+    merged = unary_union(geoms)
+    rings: List[List[Tuple[float, float]]] = []
+
+    def _collect(poly) -> None:
+        rings.append([(round(x, 6), round(y, 6)) for x, y in poly.exterior.coords])
+
+    if merged.geom_type == "Polygon":
+        _collect(merged)
+    elif merged.geom_type == "MultiPolygon":
+        # 多部件时按面积从大到小，调用方通常只取第一个
+        for part in sorted(merged.geoms, key=lambda g: g.area, reverse=True):
+            _collect(part)
+
+    return rings

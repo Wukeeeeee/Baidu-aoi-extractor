@@ -537,3 +537,180 @@ def extract_single_aoi(
         _set_cache("extract", cache_key, result)
 
     return result
+
+
+# ---------------------------------------------------------------------------
+# 住宅小区边界提取（Community AOI）
+# 流程：搜索拿 uid → 详情收集 guoke_geo_bud 建筑（WKT）→ 用 belong_aoi 查
+# AOI 组拿全部建筑 → 合并成小区边界。所有请求带退避与风控识别。
+# ---------------------------------------------------------------------------
+
+
+def extract_community_aoi(place_name: str,
+                          uid: Optional[str] = None,
+                          headless: bool = True,
+                          delay_s: float = 2.5,
+                          max_retries: int = 3,
+                          logger=None) -> Dict[str, Any]:
+    """
+    提取住宅小区的真实边界与建筑轮廓。
+
+    返回:
+        {
+            success, name, uid, aoi_uid,
+            buildings: [ [ (lng,lat), ... ] ... ]  # WGS84 建筑环
+            boundary:  [ [ (lng,lat), ... ] ... ]  # WGS84 合并后的小区边界环
+            buildings_count, error
+        }
+    """
+    _log = logger or (lambda *a: None)
+    result: Dict[str, Any] = {
+        "success": False, "name": place_name, "uid": uid or "",
+        "aoi_uid": "", "buildings": [], "boundary": [],
+        "buildings_count": 0, "error": "",
+    }
+
+    cache_key = f"community_{place_name}_{uid or ''}"
+    cached = _get_cache("community", cache_key)
+    if cached is not None:
+        _log(f"[cache] 命中缓存: {place_name}")
+        return cached
+
+    from core.converter import extract_buildings_from_detail_json, extract_belong_aoi, parse_wkt_polygon, merge_building_polygons
+
+    captured = {"uid": uid, "buildings": [], "captcha_hits": 0}
+
+    try:
+        with sync_playwright() as p:
+            browser = _launch_browser(p, headless=headless)
+            context = _create_context(browser)
+            page = context.new_page()
+            _add_anti_detect_script(page)
+
+            def _collect_from_json(d: Any) -> None:
+                """任何响应里都尝试收集建筑与 belong_aoi，不挑接口形态"""
+                try:
+                    captured["buildings"].extend(extract_buildings_from_detail_json(d))
+                except Exception:
+                    pass
+
+            def on_resp(response):
+                url = response.url
+                try:
+                    if "qt=s" in url and not captured["uid"]:
+                        data = response.json()
+                        cands = extract_candidates_from_search_json(data)
+                        if cands and cands[0].get("uid"):
+                            captured["uid"] = cands[0]["uid"]
+                            _log(f"从搜索结果获取到 UID: {captured['uid']}")
+                        _collect_from_json(data)
+                    elif any(t in url for t in ("detailConInfo", "qt=ext", "qt=inf", "qt=con", "qt=cur")):
+                        data = response.json()
+                        _collect_from_json(data)
+                        anti = (data.get("result") or {}).get("anti_session") or {}
+                        if anti.get("need_recaptcha"):
+                            captured["captcha_hits"] += 1
+                except Exception:
+                    pass
+
+            page.on("response", on_resp)
+            page.goto("https://map.baidu.com/", wait_until="domcontentloaded", timeout=20000)
+            page.wait_for_timeout(1000)
+
+            sb = page.locator("#sole-input")
+            sb.wait_for(state="visible", timeout=8000)
+            sb.click()
+            page.wait_for_timeout(200)
+            sb.fill(place_name)
+            page.wait_for_timeout(300)
+            page.keyboard.press("Enter")
+            page.wait_for_timeout(3500)
+
+            target_uid = captured["uid"] or uid
+
+            def fetch_detail(u: str) -> Optional[Dict[str, Any]]:
+                api_url = (
+                    f"https://map.baidu.com/?uid={u}"
+                    f"&ugc_type=3&ugc_ver=1&qt=detailConInfo&device_ratio=1&compat=1"
+                )
+                for attempt in range(max_retries):
+                    try:
+                        resp = context.request.get(api_url, timeout=15000)
+                        if resp.ok:
+                            data = resp.json()
+                            _collect_from_json(data)
+                            anti = (data.get("result") or {}).get("anti_session") or {}
+                            if anti.get("need_recaptcha"):
+                                captured["captcha_hits"] += 1
+                                _log(f"[warn] 触发风控，退避 {delay_s * 2:.0f}s 后重试 ({attempt + 1}/{max_retries})")
+                                page.wait_for_timeout(int(delay_s * 2 * 1000))
+                                continue
+                            return data
+                    except Exception:
+                        page.wait_for_timeout(1200)
+                return None
+
+            if target_uid:
+                _log(f"请求小区详情: uid={target_uid}")
+                page.wait_for_timeout(int(delay_s * 1000))
+                fetch_detail(target_uid)
+
+            aoi_uid = ""
+            for b in captured["buildings"]:
+                if b.get("belong_aoi"):
+                    aoi_uid = b["belong_aoi"]
+                    break
+
+            if not aoi_uid and target_uid:
+                aoi_uid = target_uid  # 有的小区自身就是 AOI 级条目
+
+            if aoi_uid and aoi_uid != target_uid:
+                _log(f"发现 AOI 组: {aoi_uid}，拉取整组建筑…")
+                page.wait_for_timeout(int(delay_s * 1000))
+                fetch_detail(aoi_uid)
+
+            browser.close()
+    except Exception as e:
+        result["error"] = f"浏览器自动化运行异常: {str(e)}"
+        _log(result["error"])
+        return result
+
+    # 建筑去重（face_id 或 wkt 前 80 字符）
+    unique = []
+    seen = set()
+    for b in captured["buildings"]:
+        key = b.get("face_id") or b.get("wkt", "")[:80]
+        if key and key not in seen and b.get("wkt"):
+            seen.add(key)
+            unique.append(b)
+
+    if captured["captcha_hits"] and not unique:
+        result["error"] = "百度风控拦截（need_recaptcha），未取到建筑数据。请增大 delay_s 或稍后重试。"
+        _log(result["error"])
+        return result
+
+    # WKT(BD09MC) → WGS84 环
+    polys = []
+    for b in unique:
+        mc = parse_wkt_polygon(b["wkt"])
+        if len(mc) >= 3:
+            polys.append(convert_points_to_wgs84(mc))
+
+    result["uid"] = captured["uid"] or uid or ""
+    result["aoi_uid"] = aoi_uid
+    result["buildings"] = polys
+    result["buildings_count"] = len(polys)
+
+    if not polys:
+        result["error"] = "详情中未发现 guoke_geo_bud 建筑轮廓（该小区可能无 AOI 数据）"
+        _log(result["error"])
+        return result
+
+    merged = merge_building_polygons(polys)
+    result["boundary"] = merged
+    result["success"] = len(merged) > 0
+    if not result["success"]:
+        result["error"] = "建筑轮廓合并失败"
+
+    _set_cache("community", cache_key, result)
+    return result

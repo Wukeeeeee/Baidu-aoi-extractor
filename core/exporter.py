@@ -187,3 +187,54 @@ def export_summary_excel(records: List[Dict[str, Any]], output_path: str) -> boo
             return True
         except Exception:
             return False
+
+
+def export_rings_geojson(rings: List[List[Tuple[float, float]]],
+                         place_name: str,
+                         output_path: Optional[str] = None,
+                         ftype: str = "Community_Boundary",
+                         provenance: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
+    """
+    导出多环 GeoJSON（小区合并边界 / 多栋建筑轮廓通用）。
+    provenance 写入每个 feature 与顶层，确保数据来源可追溯（采集工具、时间、原始 uid）。
+    """
+    from shapely.geometry import Polygon as _ShapelyPolygon  # 局部导入，保持模块轻量
+
+    features = []
+    for i, ring in enumerate(rings):
+        if not ring or len(ring) < 3:
+            continue
+        closed = list(ring)
+        if closed[0] != closed[-1]:
+            closed.append(closed[0])
+        try:
+            _ShapelyPolygon(closed)
+        except Exception:
+            continue
+        props = {
+            "name": place_name,
+            "type": ftype,
+            "part_index": i,
+            "points_count": len(closed),
+        }
+        if provenance:
+            props.update(provenance)
+        features.append({
+            "type": "Feature",
+            "properties": props,
+            "geometry": {"type": "Polygon", "coordinates": [closed]},
+        })
+
+    if not features:
+        return None
+
+    geojson_dict = {"type": "FeatureCollection", "features": features}
+    if provenance:
+        geojson_dict["provenance"] = provenance
+
+    if output_path:
+        os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
+        with open(output_path, "w", encoding="utf-8") as f:
+            json.dump(geojson_dict, f, ensure_ascii=False, indent=2)
+
+    return geojson_dict

@@ -12,6 +12,7 @@
 
 import os
 import sys
+import time
 import argparse
 
 # 确保控制台中文输出正常
@@ -37,6 +38,10 @@ def main():
     parser.add_argument("--out", default="output", help="导出目录 (默认: ./output)")
     parser.add_argument("--show", action="store_true", help="显示浏览器窗口")
     parser.add_argument("--debug", action="store_true", help="输出调试日志")
+    parser.add_argument("--community", action="store_true",
+                        help="住宅小区模式：提取 guoke_geo_bud 建筑轮廓并合并为小区边界（GeoJSON）")
+    parser.add_argument("--delay", type=float, default=2.5,
+                        help="社区模式请求间隔秒数（防风控，默认 2.5s）")
     args = parser.parse_args()
 
     place = args.place
@@ -46,6 +51,50 @@ def main():
     if not place:
         print("错误: 地点名称不能为空")
         sys.exit(1)
+
+    safe_name = "".join([c for c in place if c not in r'\/:*?"<>|']).strip()
+    out_dir = os.path.join(args.out, safe_name)
+
+    if args.community:
+        from core.crawler import extract_community_aoi
+        from core.exporter import export_rings_geojson
+
+        print(f"\n==================================================")
+        print(f"  小区边界模式: {place}")
+        print(f"==================================================")
+        res = extract_community_aoi(
+            place_name=place,
+            uid=args.uid,
+            headless=not args.show,
+            delay_s=args.delay,
+            logger=print,
+        )
+        if not res.get("success"):
+            print(f"\n[FAIL] 提取失败: {res.get('error', '未知错误')}")
+            sys.exit(1)
+
+        os.makedirs(out_dir, exist_ok=True)
+        provenance = {
+            "source": "baidu_map_web_detail.guoke_geo_bud",
+            "tool": "baidu-aoi-extractor --community",
+            "collected_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "uid": res.get("uid", ""),
+            "aoi_uid": res.get("aoi_uid", ""),
+        }
+        boundary_path = os.path.join(out_dir, f"{safe_name}_小区边界.geojson")
+        buildings_path = os.path.join(out_dir, f"{safe_name}_建筑轮廓.geojson")
+        export_rings_geojson(res["boundary"], place, boundary_path,
+                             ftype="Community_Boundary", provenance=provenance)
+        export_rings_geojson(res["buildings"], place, buildings_path,
+                             ftype="Building_Footprint", provenance=provenance)
+
+        print(f"\n==================================================")
+        print(f"  [DONE] 小区边界提取完成!")
+        print(f"  建筑数: {res.get('buildings_count')}")
+        print(f"  边界环数: {len(res.get('boundary', []))}")
+        print(f"  输出: {os.path.abspath(out_dir)}")
+        print(f"==================================================")
+        return
 
     print(f"\n==================================================")
     print(f"  正在提取: {place}")
