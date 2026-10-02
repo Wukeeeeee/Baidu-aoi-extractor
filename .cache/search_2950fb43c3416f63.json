@@ -1,0 +1,138 @@
+[
+  {
+    "name": "长沙黄花国际机场",
+    "uid": "c516fc89e549dd23f90cadcb",
+    "address": "长沙市长沙县黄花镇机场大道",
+    "tag": "交通设施 飞机场",
+    "longitude": 11320.102186,
+    "latitude": 1965050.319453
+  },
+  {
+    "name": "长沙黄花国际机场T2航站楼-国内出发",
+    "uid": "6f3a9eb1bf5c3d551df74d1e",
+    "address": "湖南省长沙市长沙县机场大道长沙黄花国际机场",
+    "tag": "出入口 机场入口",
+    "longitude": 11328.437876,
+    "latitude": 1964108.703368
+  },
+  {
+    "name": "长沙黄花国际机场-T3航站楼",
+    "uid": "dd626fc31609bca543ab9ae1",
+    "address": "长沙市长沙县黄花镇机场大道长沙黄花国际机场",
+    "tag": "交通设施 航站楼",
+    "longitude": 11321.212766,
+    "latitude": 1960394.033487
+  },
+  {
+    "name": "长沙黄花国际机场T1航站楼-国内出发",
+    "uid": "f9b822aa889d180ab42655fc",
+    "address": "长沙市长沙县机场大道长沙黄花国际机场",
+    "tag": "出入口 机场入口",
+    "longitude": 11328.430165,
+    "latitude": 1966930.337865
+  },
+  {
+    "name": "湖南长沙开慧通用机场",
+    "uid": "efefa5776018b209f8f0cbe8",
+    "address": "湖南省长沙市长沙县骄阳西路南",
+    "tag": "交通设施 飞机场",
+    "longitude": 11317.512127,
+    "latitude": 2125520.230864
+  },
+  {
+    "name": "长沙机场公司",
+    "uid": "1fec23fea93540900c0a7032",
+    "address": "湖南省长沙市长沙县临空南路1号",
+    "tag": "公司企业 公司",
+    "longitude": 11327.694756,
+    "latitude": 1981334.633747
+  },
+  {
+    "name": "长沙黄花国际机场T1航站楼-国内到达",
+    "uid": "5dd3d08136c5b4e9a1d2304d",
+    "address": "长沙市长沙县机场大道长沙黄花国际机场",
+    "tag": "出入口 机场出口",
+    "longitude": 11328.495286,
+    "latitude": 1966951.643713
+  },
+  {
+    "name": "长沙机场凯悦嘉轩酒店",
+    "uid": "af971185e0ba650f8c1a893b",
+    "address": "临空南路1号",
+    "tag": "酒店 高档型 亲子酒店",
+    "longitude": 11317.431195,
+    "latitude": 1965092.755659
+  },
+  {
+    "name": "长沙机场voco酒店",
+    "uid": "e31941830dd88093d0ff23c4",
+    "address": "湘域国际广场A3栋",
+    "tag": "酒店 豪华型 亲子酒店",
+    "longitude": 11326.616622,
+    "latitude": 1967089.096649
+  },
+  {
+    "name": "长沙黄花国际机场T1航站楼-P5地上停车场",
+    "uid": "7db89c07b6674a18871541b0",
+    "address": "长沙市长沙县机场大道长沙黄花国际机场T1航站楼",
+    "tag": "交通设施 停车场 地上停车场",
+    "longitude": 11317.715045,
+    "latitude": 1966903.102704
+  },
+  {
+    "name": "湘村土菜",
+    "uid": "b15b5951f345f1c9b8bd6333",
+    "address": "岳麓岳麓区府后路",
+    "tag": "美食 中餐馆 餐馆",
+    "longitude": 11288.534057,
+    "latitude": 1982592.332677
+  },
+  {
+    "name": "长沙机场豪生酒店",
+    "uid": "",
+    "address": "长沙市 长沙县",
+    "tag": "联想地点",
+    "longitude": null,
+    "latitude": null
+  },
+  {
+    "name": "长沙黄花国际机场-T2航站楼",
+    "uid": "",
+    "address": "长沙市 长沙县",
+    "tag": "联想地点",
+    "longitude": null,
+    "latitude": null
+  },
+  {
+    "name": "长沙黄花国际机场-T1航站楼",
+    "uid": "",
+    "address": "长沙市 长沙县",
+    "tag": "联想地点",
+    "longitude": null,
+    "latitude": null
+  },
+  {
+    "name": "机场高速-道路",
+    "uid": "",
+    "address": "长沙市",
+    "tag": "联想地点",
+    "longitude": null,
+    "latitude": null
+  },
+  {
+    "name": "机场口路-道路",
+    "uid": "",
+    "address": "长沙市 天心区",
+    "tag": "联想地点",
+    "longitude": null,
+    "latitude": null
+  },
+  {
+    "name": "长沙黄花国际机场T2航站楼P2地上停车场-入口",
+    "uid": "",
+    "address": "长沙市 长沙县",
+    "tag": "联想地点",
+    "longitude": null,
+    "latitude": null
+  }
+]

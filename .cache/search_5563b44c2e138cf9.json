@@ -1,0 +1,146 @@
+[
+  {
+    "name": "北京大学",
+    "uid": "ddfd7c2d8db36cf39ee3219e",
+    "address": "北京市海淀区颐和园路5号",
+    "tag": "教育培训 高等院校",
+    "longitude": 11659.748764,
+    "latitude": 13228252.596137
+  },
+  {
+    "name": "北京大学(昌平校区)",
+    "uid": "a89895dca5dbaa3e2b3a9fd4",
+    "address": "北京市昌平区十三陵镇西山口村",
+    "tag": "教育培训 高等院校 综合大学",
+    "longitude": 11610.087778,
+    "latitude": 13680477.94147
+  },
+  {
+    "name": "北京大学医学部",
+    "uid": "cbc2b7eb74bb180fb5147f02",
+    "address": "北京市海淀区学院路38号",
+    "tag": "教育培训 高等院校 综合大学",
+    "longitude": 11631.887216,
+    "latitude": 13212223.253716
+  },
+  {
+    "name": "北京大学(新燕园校区)",
+    "uid": "e33870dd94c1769978f79679",
+    "address": "北京市昌平区北小营村",
+    "tag": "教育培训 高等院校 综合大学",
+    "longitude": 11657.71911,
+    "latitude": 13554781.626517
+  },
+  {
+    "name": "北京大学(圆明园校区)",
+    "uid": "803708f198cc0f79008972ab",
+    "address": "北京市海淀区中关村北大街47号",
+    "tag": "教育培训 高等院校 综合大学",
+    "longitude": 11626.57494,
+    "latitude": 13266037.889408
+  },
+  {
+    "name": "北京积水潭医院(新街口院区)",
+    "uid": "680fb7037d9c70858bb988c1",
+    "address": "北京市西城区新街口东街31号",
+    "tag": "医疗 医院 综合医院",
+    "longitude": 11662.677179,
+    "latitude": 13141575.808157
+  },
+  {
+    "name": "北京大学-西南门",
+    "uid": "ebb1e90cdaf0069eb45f1eea",
+    "address": "北京市海淀区颐和园路5号",
+    "tag": "出入口 门",
+    "longitude": 11602.974088,
+    "latitude": 13217894.201323
+  },
+  {
+    "name": "北京大学-南2门",
+    "uid": "9eb3a19d35708a18f8dc8553",
+    "address": "北京市海淀区颐和园路5号",
+    "tag": "出入口 门",
+    "longitude": 11592.882118,
+    "latitude": 13215669.62043
+  },
+  {
+    "name": "北京大学第一医院",
+    "uid": "34f68ab0bedfdd138e55ec9d",
+    "address": "北京市西城区西什库大街8号",
+    "tag": "医疗 医院 综合医院",
+    "longitude": 11660.681719,
+    "latitude": 13120125.755546
+  },
+  {
+    "name": "北京大学-学生工作部",
+    "uid": "2c80eae0a22bea9b8433043a",
+    "address": "北京市海淀区颐和园路5号北京大学",
+    "tag": "教育培训 职能机构",
+    "longitude": 11657.270142,
+    "latitude": 13219256.096446
+  },
+  {
+    "name": "湘村土菜",
+    "uid": "b15b5951f345f1c9b8bd6333",
+    "address": "岳麓岳麓区府后路",
+    "tag": "美食 中餐馆 餐馆",
+    "longitude": 11288.534057,
+    "latitude": 1982592.332677
+  },
+  {
+    "name": "北京大学肿瘤医院",
+    "uid": "",
+    "address": "北京市 海淀区",
+    "tag": "联想地点",
+    "longitude": null,
+    "latitude": null
+  },
+  {
+    "name": "北京大学第三医院",
+    "uid": "",
+    "address": "北京市 海淀区",
+    "tag": "联想地点",
+    "longitude": null,
+    "latitude": null
+  },
+  {
+    "name": "北京大学深圳医院",
+    "uid": "",
+    "address": "深圳市 福田区",
+    "tag": "联想地点",
+    "longitude": null,
+    "latitude": null
+  },
+  {
+    "name": "北京大学人民医院(西直门院区)",
+    "uid": "",
+    "address": "北京市 西城区",
+    "tag": "联想地点",
+    "longitude": null,
+    "latitude": null
+  },
+  {
+    "name": "北京大学第一医院(大兴院区)",
+    "uid": "",
+    "address": "北京市 大兴区",
+    "tag": "联想地点",
+    "longitude": null,
+    "latitude": null
+  },
+  {
+    "name": "北京大学东门-地铁站",
+    "uid": "",
+    "address": "北京市 海淀区",
+    "tag": "联想地点",
+    "longitude": null,
+    "latitude": null
+  },
+  {
+    "name": "北京师范大学",
+    "uid": "",
+    "address": "北京市 海淀区",
+    "tag": "联想地点",
+    "longitude": null,
+    "latitude": null
+  }
+]

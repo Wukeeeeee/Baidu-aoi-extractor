@@ -1,0 +1,122 @@
+[
+  {
+    "name": "中南大学(岳麓山校区)",
+    "uid": "c667e2aca45ae5dec26c14dc",
+    "address": "湖南省长沙市岳麓区岳麓街道麓山南路932号",
+    "tag": "教育培训 高等院校",
+    "longitude": 11298.564256,
+    "latitude": 1958038.779925
+  },
+  {
+    "name": "中南大学(麓南校区)",
+    "uid": "9b6f209382d78fb95a3ac8e8",
+    "address": "长沙市岳麓区麓山南路605号",
+    "tag": "教育培训 高等院校 综合大学",
+    "longitude": 11295.104862,
+    "latitude": 1954301.403221
+  },
+  {
+    "name": "中南大学(潇湘校区)",
+    "uid": "da169dbd818ca83e471a3245",
+    "address": "湖南省长沙市岳麓区岳麓街道潇湘中路与靳江路交叉口西南150米",
+    "tag": "教育培训 高等院校 综合大学",
+    "longitude": 11294.20085,
+    "latitude": 1951905.288522
+  },
+  {
+    "name": "中南大学(天心校区)",
+    "uid": "7763d4807dd6180ccc06a419",
+    "address": "长沙市天心区韶山南路22号",
+    "tag": "教育培训 高等院校 综合大学",
+    "longitude": 11296.269958,
+    "latitude": 1946240.507897
+  },
+  {
+    "name": "中南大学（杏林校区）",
+    "uid": "2f3aaf766dfccc37e81e9781",
+    "address": "湖南省长沙市岳麓区桐梓坡路172号",
+    "tag": "教育培训 高等院校 综合大学",
+    "longitude": 11291.487772,
+    "latitude": 1977481.680926
+  },
+  {
+    "name": "中南大学",
+    "uid": "7322d37c68528d174bcc4a56",
+    "address": "轨道交通3号线",
+    "tag": "交通设施;地铁站",
+    "longitude": 11300.086339,
+    "latitude": 1951995.027268
+  },
+  {
+    "name": "中南大学(开福校区)",
+    "uid": "7c5e480ba5aab0b4adb22a6a",
+    "address": "湖南省长沙市开福区湘雅路街道湘雅路88号",
+    "tag": "教育培训 高等院校 综合大学",
+    "longitude": 11293.467136,
+    "latitude": 1975555.41354
+  },
+  {
+    "name": "中南大学升华学生公寓",
+    "uid": "bcdb92824487a66b41d63e3c",
+    "address": "湖南省长沙市岳麓区清水路",
+    "tag": "房地产 宿舍",
+    "longitude": 11300.003518,
+    "latitude": 1953715.647254
+  },
+  {
+    "name": "湘村土菜",
+    "uid": "b15b5951f345f1c9b8bd6333",
+    "address": "岳麓岳麓区府后路",
+    "tag": "美食 中餐馆 餐馆",
+    "longitude": 11288.534057,
+    "latitude": 1982592.332677
+  },
+  {
+    "name": "中南民族大学",
+    "uid": "",
+    "address": "武汉市 洪山区",
+    "tag": "联想地点",
+    "longitude": null,
+    "latitude": null
+  },
+  {
+    "name": "湖南省儿童医院",
+    "uid": "",
+    "address": "长沙市 雨花区",
+    "tag": "联想地点",
+    "longitude": null,
+    "latitude": null
+  },
+  {
+    "name": "中南大学-地铁站",
+    "uid": "",
+    "address": "长沙市 岳麓区",
+    "tag": "联想地点",
+    "longitude": null,
+    "latitude": null
+  },
+  {
+    "name": "中南大学湘雅医院",
+    "uid": "",
+    "address": "长沙市 开福区",
+    "tag": "联想地点",
+    "longitude": null,
+    "latitude": null
+  },
+  {
+    "name": "中南大学湘雅二医院",
+    "uid": "",
+    "address": "长沙市 芙蓉区",
+    "tag": "联想地点",
+    "longitude": null,
+    "latitude": null
+  },
+  {
+    "name": "中南大学湘雅三医院",
+    "uid": "",
+    "address": "长沙市 岳麓区",
+    "tag": "联想地点",
+    "longitude": null,
+    "latitude": null
+  }
+]
